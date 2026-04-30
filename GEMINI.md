@@ -1,0 +1,27 @@
+# Project Rules
+
+## Project structure
+- The root folder should be kept as clean as possible. Ideally, only contain `.md` files, cloud scripts, and essential project configuration files (like `package.json`).
+- Application source code should be encapsulated in a dedicated sub-directory (like `src/` or `app/`).
+
+## Specification
+- SPEC.md describes the applications major business logic. When new functionality is added or modified, keep this file up-to-date.
+- If new application logic or changes to the logic diverts from what's specified in SPEC.md flag this to the user and await further action.
+
+## Documentation
+- README.md should always be kept up-to-date with major application functionality.
+
+## Deployment
+- Environment variables and secrets must be locally stored in `.env`. Ensure `.env` is immediately added to `.gitignore` and never committed or uploaded to any cloud service.
+- Never modify cloud services directly. Everything related to the deployment of this application should be mapped up in `cloud-deploy.sh` and `cloud-teardown.sh` respectively.
+
+## Code Quality
+- Ensure code is properly linted and resolves all warnings (e.g., unused variables) before committing.
+- If you create temporary test files, don't keep these laying around unless told so.
+- Never leave dead code behind.
+
+## Error Handling & Telemetry
+- All new data-fetching logic or third-party integrations must include robust error handling and propagate their state to the application's core telemetry and health monitoring systems.
+
+## Version Control
+- Keep git commits atomic and descriptive. Do not bundle unrelated features or bug fixes into a single commit.
