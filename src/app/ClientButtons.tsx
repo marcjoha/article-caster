@@ -1,0 +1,166 @@
+'use client';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+
+export function FeedUrlDisplay({ path }: { path: string }) {
+  const [origin, setOrigin] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setOrigin(window.location.origin), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!origin) return null;
+
+  const fullUrl = `${origin}${path}`;
+
+  return (
+    <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+      <a href={fullUrl} target="_blank" rel="noreferrer" className="url-link" style={{color: 'var(--accent-color)', textDecoration: 'underline', fontSize: '0.9rem'}}>
+        {fullUrl}
+      </a>
+    </div>
+  );
+}
+
+export function CopyUrlButton({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      const fullUrl = window.location.origin + url;
+      await navigator.clipboard.writeText(fullUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.error('Failed to copy', e);
+    }
+  };
+
+  return (
+    <button 
+      onClick={handleCopy} 
+      className="btn" 
+      style={{backgroundColor: 'transparent', color: 'var(--accent-color)', border: '1px solid var(--accent-color)', padding: '0.4rem 0.8rem', fontSize: '0.875rem'}}
+    >
+      {copied ? 'Copied!' : 'Copy URL'}
+    </button>
+  );
+}
+
+export function DeleteFeedButton({ feedId }: { feedId: string }) {
+  const router = useRouter();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    await fetch(`/api/feeds/${feedId}`, { method: 'DELETE' });
+    setShowConfirm(false);
+    router.push('/');
+    router.refresh();
+  };
+  
+  return (
+    <>
+      <button 
+        onClick={() => setShowConfirm(true)} 
+        className="btn" 
+        style={{backgroundColor: '#ef4444', color: 'white', padding: '0.4rem 0.8rem', fontSize: '0.875rem'}}
+      >
+        Delete
+      </button>
+
+      {showConfirm && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative'}}>
+            <h2 style={{marginTop: 0, color: '#ef4444'}}>Delete Feed</h2>
+            <p style={{marginBottom: '2rem', lineHeight: 1.5}}>
+              Are you sure you want to delete this feed and ALL its items? This cannot be undone.
+            </p>
+            <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
+              <button 
+                onClick={() => setShowConfirm(false)}
+                className="btn"
+                style={{backgroundColor: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-secondary)'}}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmDelete}
+                className="btn"
+                style={{backgroundColor: '#ef4444'}}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export function DeleteItemButton({ itemId }: { itemId: string }) {
+  const router = useRouter();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    await fetch(`/api/items/${itemId}`, { method: 'DELETE' });
+    setShowConfirm(false);
+    setIsDeleting(false);
+    router.refresh();
+  };
+  
+  return (
+    <>
+      <button 
+        onClick={() => setShowConfirm(true)} 
+        className="btn" 
+        style={{backgroundColor: 'transparent', color: '#ef4444', border: '1px solid #ef4444', padding: '0.4rem 0.8rem', fontSize: '0.875rem'}}
+      >
+        Delete
+      </button>
+
+      {showConfirm && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative'}}>
+            <h2 style={{marginTop: 0, color: '#ef4444'}}>Delete Item</h2>
+            <p style={{marginBottom: '2rem', lineHeight: 1.5}}>
+              Are you sure you want to delete this item?
+            </p>
+            <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
+              <button 
+                onClick={() => setShowConfirm(false)}
+                className="btn"
+                style={{backgroundColor: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-secondary)'}}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmDelete}
+                className="btn"
+                style={{backgroundColor: '#ef4444'}}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
