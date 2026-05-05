@@ -9,16 +9,24 @@ NC='\033[0m' # No Color
 
 set -e # Fail script on any error
 
-PROJECT_ID="airy-rock-454920-i5"
-REGION="europe-north2"
-SERVICE_NAME="article-caster"
-
 # Load environment variables safely
 if [ -f .env ]; then
   set -a
   source .env
   set +a
+else
+  echo -e "${RED}✖ .env file not found. Please create one based on .env.example.${NC}"
+  exit 1
 fi
+
+if [ -z "$GOOGLE_CLOUD_PROJECT" ] || [ -z "$GOOGLE_CLOUD_REGION" ]; then
+  echo -e "${RED}✖ GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_REGION must be set in .env${NC}"
+  exit 1
+fi
+
+PROJECT_ID="$GOOGLE_CLOUD_PROJECT"
+REGION="$GOOGLE_CLOUD_REGION"
+SERVICE_NAME="article-caster"
 
 echo -e "${BLUE}ℹ Enabling necessary Google Cloud APIs...${NC}"
 gcloud services enable firestore.googleapis.com texttospeech.googleapis.com storage.googleapis.com run.googleapis.com cloudbuild.googleapis.com cloudtasks.googleapis.com --project="$PROJECT_ID"

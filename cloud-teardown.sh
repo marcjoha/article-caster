@@ -7,10 +7,25 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-PROJECT_ID="airy-rock-454920-i5"
-REGION="europe-north2"
+# Load environment variables safely
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+else
+  echo -e "${RED}✖ .env file not found. Please create one based on .env.example.${NC}"
+  exit 1
+fi
+
+if [ -z "$GOOGLE_CLOUD_PROJECT" ] || [ -z "$GOOGLE_CLOUD_REGION" ]; then
+  echo -e "${RED}✖ GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_REGION must be set in .env${NC}"
+  exit 1
+fi
+
+PROJECT_ID="$GOOGLE_CLOUD_PROJECT"
+REGION="$GOOGLE_CLOUD_REGION"
 SERVICE_NAME="article-caster"
-BUCKET_NAME="article-caster-media-$PROJECT_ID"
+BUCKET_NAME="${GCS_BUCKET_NAME:-article-caster-media-$PROJECT_ID}"
 
 echo -e "${BLUE}ℹ Deleting Cloud Run service...${NC}"
 gcloud run services delete "$SERVICE_NAME" --region="$REGION" --project="$PROJECT_ID" --quiet || echo -e "${YELLOW}⚠ Service already deleted or doesn't exist.${NC}"
