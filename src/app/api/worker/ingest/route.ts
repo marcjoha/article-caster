@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { extractArticleContent } from '@/lib/ingestion/article';
 import { synthesizeSpeech } from '@/lib/ingestion/tts';
 import { uploadFile } from '@/lib/storage';
-import { createFeedItem, updateIngestion } from '@/lib/firestore';
+import { createFeedItem, updateIngestion, db, Feed } from '@/lib/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
@@ -16,8 +16,13 @@ export async function POST(request: Request) {
     // Mark as processing
     await updateIngestion(ingestionId, { status: 'processing' });
 
-    const { title, textContent } = await extractArticleContent(url);
-    const audioBuffer = await synthesizeSpeech(textContent);
+    // Fetch the Feed to get its tts_voice configuration
+    const feedSnapshot = await db.collection('feeds').doc(feedId).get();
+    const feed = feedSnapshot.data() as Feed | undefined;
+    const voicePreference = feed?.tts_voice;
+
+    const { title, textContent, language, ssmlBlocks } = await extractArticleContent(url);
+    const audioBuffer = await synthesizeSpeech({ ssmlBlocks, language, voicePreference });
     
     const fileId = uuidv4();
     const mediaUrl = await uploadFile(`article/${fileId}.mp3`, audioBuffer, 'audio/mpeg');
