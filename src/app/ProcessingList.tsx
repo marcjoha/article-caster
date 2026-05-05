@@ -2,10 +2,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { formatDateTime } from '@/lib/utils';
+
 type Ingestion = {
   id: string;
   url: string;
   status: string;
+  created_at: string;
 };
 
 export default function ProcessingList({ feedId }: { feedId: string }) {
@@ -21,8 +24,6 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
           const data = await res.json();
           setIngestions(data.ingestions);
           
-          // If the count of active ingestions decreases, it likely means one finished.
-          // Trigger a refresh so the main list updates to show the new article.
           if (data.ingestions.length < prevCountRef.current) {
             router.refresh();
           }
@@ -34,7 +35,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
     };
 
     fetchIngestions();
-    const interval = setInterval(fetchIngestions, 3000); // Poll every 3 seconds
+    const interval = setInterval(fetchIngestions, 3000);
 
     return () => clearInterval(interval);
   }, [feedId, router]);
@@ -42,20 +43,36 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
   if (ingestions.length === 0) return null;
 
   return (
-    <div className="card" style={{ padding: '1.5rem', marginBottom: '2rem', borderLeft: '4px solid #f59e0b' }}>
-      <h3 style={{ margin: '0 0 1rem 0' }}>Processing ({ingestions.length})</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {ingestions.map(ing => (
-          <div key={ing.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '4px' }}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
-              {ing.url}
-            </span>
-            <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>
-              {ing.status === 'pending' ? 'Pending...' : 'Processing...'}
-            </span>
-          </div>
-        ))}
+    <div style={{ marginBottom: '3rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h3 style={{ margin: 0 }}>Processing</h3>
+        <span style={{ color: '#f59e0b', fontSize: '0.875rem' }}>{ingestions.length} in progress</span>
+      </div>
+      
+      <div className="article-table-container">
+        <table className="article-table" style={{ borderTopColor: '#f59e0b' }}>
+          <tbody>
+            {ingestions.map(ing => (
+              <tr key={ing.id}>
+                <td>
+                  <div className="article-title" style={{ color: '#cbd5e1' }}>{ing.url}</div>
+                  <div className="article-meta">
+                    {formatDateTime(ing.created_at)}
+                  </div>
+                </td>
+                <td className="article-audio-cell">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f59e0b', fontSize: '0.875rem', fontWeight: 600 }}>
+                    <div className="spinner" style={{ width: '12px', height: '12px', border: '2px solid #f59e0b', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                    {ing.status === 'pending' ? 'Pending...' : 'Processing...'}
+                  </div>
+                </td>
+                <td className="article-actions-cell"></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
+

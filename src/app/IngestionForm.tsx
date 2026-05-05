@@ -40,7 +40,7 @@ export default function IngestionForm({ feedId }: { feedId: string }) {
         <div style={{ display: 'flex', gap: '1rem' }}>
           <input type="url" className="input-field" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/article" required style={{ marginBottom: 0 }} />
           <button type="submit" className="btn" disabled={loading} style={{ whiteSpace: 'nowrap' }}>
-            {loading ? 'Processing...' : 'Ingest'}
+            {loading ? 'Processing...' : 'Add to Podcast'}
           </button>
         </div>
       </div>

@@ -8,6 +8,7 @@ interface FeedFormProps {
     title: string;
     description: string;
     cover_image_url?: string;
+    tts_voice?: string;
   };
   buttonText?: string;
   buttonStyle?: React.CSSProperties;
@@ -28,7 +29,9 @@ export default function FeedForm({
 }: FeedFormProps) {
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
-  const [coverImageUrl, setCoverImageUrl] = useState(initialData?.cover_image_url || '');
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [existingCoverUrl] = useState(initialData?.cover_image_url || '');
+  const [ttsVoice, setTtsVoice] = useState(initialData?.tts_voice || 'auto');
   const [loading, setLoading] = useState(false);
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = externalIsOpen || internalIsOpen;
@@ -46,10 +49,19 @@ export default function FeedForm({
     const url = initialData ? `/api/feeds/${initialData.id}` : '/api/feeds';
     const method = initialData ? 'PUT' : 'POST';
 
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('tts_voice', ttsVoice);
+    if (coverImageFile) {
+      formData.append('cover_image', coverImageFile);
+    } else if (existingCoverUrl) {
+      formData.append('cover_image_url', existingCoverUrl);
+    }
+
     const res = await fetch(url, {
       method,
-      body: JSON.stringify({ title, description, cover_image_url: coverImageUrl }),
-      headers: { 'Content-Type': 'application/json' },
+      body: formData,
     });
 
     if (res.ok) {
@@ -57,14 +69,14 @@ export default function FeedForm({
         const data = await res.json();
         setTitle('');
         setDescription('');
-        setCoverImageUrl('');
+        setCoverImageFile(null);
         router.push(`/?feedId=${data.feed.id}`);
       } else {
         router.refresh();
       }
       handleClose();
     } else {
-      alert(`Failed to ${initialData ? 'update' : 'create'} feed`);
+      alert(`Failed to ${initialData ? 'update' : 'create'} podcast`);
     }
     setLoading(false);
   };
@@ -75,7 +87,7 @@ export default function FeedForm({
         <button 
           onClick={() => setInternalIsOpen(true)}
           className={buttonClassName}
-          style={buttonStyle || {padding: '0.4rem 0.8rem', fontSize: '0.875rem', backgroundColor: 'transparent', border: '1px solid var(--accent-color)', color: 'var(--accent-color)', whiteSpace: 'nowrap'}}
+          style={buttonStyle || {padding: '0.4rem 0.8rem', fontSize: '0.875rem', whiteSpace: 'nowrap'}}
         >
           {buttonText}
         </button>
@@ -98,7 +110,7 @@ export default function FeedForm({
             >
               &times;
             </button>
-            <h2 style={{marginTop: 0}}>{initialData ? 'Edit Feed' : 'Create New Feed'}</h2>
+            <h2 style={{marginTop: 0}}>{initialData ? 'Edit Podcast' : 'Create New Podcast'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>Title</label>
@@ -109,12 +121,32 @@ export default function FeedForm({
                 <textarea className="input-field" rows={3} value={description} onChange={e => setDescription(e.target.value)} maxLength={50} />
               </div>
               <div className="form-group">
-                <label>Cover Image URL (Optional)</label>
-                <input type="url" className="input-field" value={coverImageUrl} onChange={e => setCoverImageUrl(e.target.value)} placeholder="https://example.com/image.jpg" />
+                <label>Cover Image (Optional)</label>
+                {existingCoverUrl && !coverImageFile && (
+                  <div style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Current image exists. Upload a new one to replace.
+                  </div>
+                )}
+                <input type="file" className="input-field" accept="image/*" onChange={e => setCoverImageFile(e.target.files?.[0] || null)} />
+              </div>
+              <div className="form-group">
+                <label>Narrator Voice</label>
+                <select className="input-field" value={ttsVoice} onChange={e => setTtsVoice(e.target.value)}>
+                  <option value="auto">Auto-detect Language (Default)</option>
+                  <option value="en-US-Journey-F">US Female (Journey)</option>
+                  <option value="en-US-Journey-D">US Male (Journey)</option>
+                  <option value="en-GB-Studio-C">UK Female (Studio)</option>
+                  <option value="en-GB-Studio-B">UK Male (Studio)</option>
+                  <option value="sv-SE-Neural2-A">Swedish Female (Neural2)</option>
+                  <option value="es-ES-Neural2-A">Spanish Female (Neural2)</option>
+                  <option value="fr-FR-Neural2-A">French Female (Neural2)</option>
+                  <option value="de-DE-Neural2-A">German Female (Neural2)</option>
+                </select>
               </div>
               <button type="submit" className="btn" disabled={loading} style={{width: '100%'}}>
-                {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Feed')}
+                {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Podcast')}
               </button>
+
             </form>
           </div>
         </div>

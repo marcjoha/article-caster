@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import Image from 'next/image';
 import { getFeeds, getFeedItems } from '@/lib/firestore';
 import FeedForm from './FeedForm';
@@ -6,11 +7,18 @@ import IngestionForm from './IngestionForm';
 import FeedSelector from './FeedSelector';
 import ProcessingList from './ProcessingList';
 
+import { formatDateTime } from '@/lib/utils';
+
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ feedId?: string }> }) {
   const { feedId } = await searchParams;
   const feeds = await getFeeds();
+  
+  const headersList = await headers();
+  const host = headersList.get('host') || 'localhost:3000';
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const baseUrl = `${protocol}://${host}`;
   
   const selectedFeed = feedId 
     ? feeds.find(f => f.id === feedId) 
@@ -20,12 +28,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const items = activeFeedId ? await getFeedItems(activeFeedId) : [];
 
   return (
-    <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
+    <div className="container" style={{ maxWidth: '1000px', margin: '0 auto' }}>
       <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <h1 style={{margin: 0, fontSize: '1.5rem'}}>article-caster</h1>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <FeedSelector feeds={feeds} activeFeedId={activeFeedId} />
-          <FeedForm buttonText="New Feed" />
+          <FeedForm buttonText="New Podcast" />
         </div>
       </div>
 
@@ -35,7 +43,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               <div className="feed-header" style={{display: 'flex', gap: '2rem', marginBottom: '2.5rem'}}>
                 <div style={{flexShrink: 0}}>
                   {selectedFeed.cover_image_url ? (
-                    <Image src={selectedFeed.cover_image_url} alt="Cover" width={120} height={120} unoptimized={true} style={{borderRadius: '12px', objectFit: 'cover'}} />
+                    <Image src={selectedFeed.cover_image_url} alt="Cover" width={120} height={120} unoptimized={true} priority={true} style={{borderRadius: '12px', objectFit: 'cover'}} />
                   ) : (
                     <div style={{width: '120px', height: '120px', borderRadius: '12px', background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                       <span style={{fontSize: '3rem', color: '#fff'}}>{selectedFeed.title.charAt(0).toUpperCase()}</span>
@@ -49,7 +57,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                       <p style={{margin: 0, color: '#cbd5e1', fontSize: '1rem', lineHeight: 1.5, maxWidth: '600px'}}>
                         {selectedFeed.description || 'No description provided.'}
                       </p>
-                      <FeedUrlDisplay path={`/feed/${selectedFeed.unguessable_slug}`} />
+                      <FeedUrlDisplay baseUrl={baseUrl} path={`/feed/${selectedFeed.unguessable_slug}`} />
                     </div>
                     <div className="feed-actions" style={{display: 'flex', gap: '1rem'}}>
                       <FeedForm 
@@ -90,24 +98,52 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <p>No articles in this feed yet.</p>
                 </div>
               ) : (
-                <div className="item-list">
-                  {items.map(item => (
-                    <div key={item.id} className="item-card" style={{padding: '1.25rem', borderLeft: '4px solid var(--accent-color)'}}>
-                      <div className="item-info" style={{width: '100%'}}>
-                        <h4 style={{margin: '0 0 0.5rem 0', fontSize: '1.1rem'}}>{item.title}</h4>
-                        <div className="item-card-details" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem'}}>
-                          <p style={{fontSize: '0.875rem', margin: 0}}>
-                            {Math.round(item.duration_seconds / 60)} mins • {new Date(item.created_at).toLocaleDateString()}
-                          </p>
-                          <div className="item-card-actions" style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
-                            <audio controls src={item.media_url} style={{ height: '36px' }} />
+                <div className="article-table-container">
+                  <table className="article-table" style={{ borderTopColor: 'var(--accent-color)' }}>
+                    <tbody>
+                      {items.map(item => (
+                        <tr key={item.id}>
+
+                          <td>
+                            <div className="article-title">
+                              {item.source_url ? (
+                                <a href={item.source_url} target="_blank" rel="noreferrer">
+                                  {item.title}
+                                </a>
+                              ) : (
+                                item.title
+                              )}
+                            </div>
+                            <div className="article-meta">
+                              {formatDateTime(item.created_at)}
+                              {item.source_url && (
+                                <>
+                                  <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>•</span>
+                                  {(() => {
+                                    try {
+                                      return new URL(item.source_url).hostname.replace(/^www\./, '');
+                                    } catch {
+                                      return item.source_url;
+                                    }
+                                  })()}
+                                </>
+                              )}
+                            </div>
+
+
+                          </td>
+                          <td className="article-audio-cell">
+                            <audio controls src={item.media_url} />
+                          </td>
+                          <td className="article-actions-cell">
                             <DeleteItemButton itemId={item.id!} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
+
               )}
             </div>
           ) : (
