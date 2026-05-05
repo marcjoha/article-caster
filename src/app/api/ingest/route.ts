@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     } else {
       // Production: Enqueue to Cloud Tasks
       const client = new CloudTasksClient();
-      const project = process.env.GOOGLE_CLOUD_PROJECT || 'airy-rock-454920-i5';
+      const project = process.env.GOOGLE_CLOUD_PROJECT!;
       const queue = process.env.QUEUE_NAME || 'ingest-queue';
       const location = 'europe-west1';
       

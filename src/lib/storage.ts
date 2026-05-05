@@ -1,10 +1,10 @@
 import { Storage } from '@google-cloud/storage';
 
 const storage = new Storage({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT || 'airy-rock-454920-i5',
+  projectId: process.env.GOOGLE_CLOUD_PROJECT,
 });
 
-const bucketName = process.env.GCS_BUCKET_NAME || 'article-caster-media-airy-rock-454920-i5';
+const bucketName = process.env.GCS_BUCKET_NAME!;
 const bucket = storage.bucket(bucketName);
 
 export const uploadFile = async (destinationPath: string, buffer: Buffer, contentType: string): Promise<string> => {
@@ -23,4 +23,21 @@ export const uploadFile = async (destinationPath: string, buffer: Buffer, conten
   }
   
   return `https://storage.googleapis.com/${bucketName}/${destinationPath}`;
+};
+
+export const deleteFile = async (publicUrl: string): Promise<void> => {
+  try {
+    const urlPrefix = `https://storage.googleapis.com/${bucketName}/`;
+    if (!publicUrl.startsWith(urlPrefix)) return;
+    
+    const destinationPath = publicUrl.substring(urlPrefix.length);
+    const file = bucket.file(destinationPath);
+    
+    const [exists] = await file.exists();
+    if (exists) {
+      await file.delete();
+    }
+  } catch (e) {
+    console.error('Failed to delete file from storage', e);
+  }
 };

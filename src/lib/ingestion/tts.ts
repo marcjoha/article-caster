@@ -1,18 +1,63 @@
 import textToSpeech from '@google-cloud/text-to-speech';
 
 const client = new textToSpeech.TextToSpeechClient({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT || 'airy-rock-454920-i5',
+  projectId: process.env.GOOGLE_CLOUD_PROJECT,
 });
 
-// Using a Journey voice as requested for highly expressive audio
-const VOICE_NAME = 'en-US-Journey-F';
+export interface SynthesizeOptions {
+  ssmlBlocks: string[];
+  language: string;
+  voicePreference?: string;
+}
 
-export const synthesizeSpeech = async (text: string): Promise<Buffer> => {
-  // TTS has a limit of ~5000 characters per request.
-  // We chunk by 4000 characters and concatenate the resulting MP3 buffers.
+const resolveVoice = (language: string, voicePreference?: string) => {
+  if (voicePreference && voicePreference !== 'auto') {
+    return { languageCode: voicePreference.slice(0, 5), name: voicePreference };
+  }
+
+  // Auto-detect based on language
+  const langUpper = language.toUpperCase();
+  if (langUpper.startsWith('EN-GB') || langUpper.startsWith('EN-UK')) {
+    return { languageCode: 'en-GB', name: 'en-GB-Studio-C' };
+  } else if (langUpper.startsWith('ES')) {
+    return { languageCode: 'es-ES', name: 'es-ES-Neural2-A' };
+  } else if (langUpper.startsWith('FR')) {
+    return { languageCode: 'fr-FR', name: 'fr-FR-Neural2-A' };
+  } else if (langUpper.startsWith('DE')) {
+    return { languageCode: 'de-DE', name: 'de-DE-Neural2-A' };
+  } else if (langUpper.startsWith('SV')) {
+    return { languageCode: 'sv-SE', name: 'sv-SE-Neural2-A' };
+  }
+
+  // Default fallback
+  return { languageCode: 'en-US', name: 'en-US-Journey-F' };
+};
+
+export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buffer> => {
+  const voiceParams = resolveVoice(options.language, options.voicePreference);
   
-  const chunks = text.match(/.{1,4000}(\s|$)/g) || [text];
+  const chunks: string[] = [];
+  let currentChunk = '<speak>';
   
+  for (const block of options.ssmlBlocks) {
+    if (currentChunk.length + block.length + 10 > 4000) {
+      currentChunk += '</speak>';
+      chunks.push(currentChunk);
+      currentChunk = '<speak>' + block;
+    } else {
+      currentChunk += block;
+    }
+  }
+  
+  if (currentChunk !== '<speak>') {
+    currentChunk += '</speak>';
+    chunks.push(currentChunk);
+  }
+
+  if (chunks.length === 0) {
+    return Buffer.alloc(0);
+  }
+
   const CONCURRENCY_LIMIT = 3;
   const audioBuffers: Buffer[] = new Array(chunks.length);
 
@@ -20,14 +65,10 @@ export const synthesizeSpeech = async (text: string): Promise<Buffer> => {
     const batch = chunks.slice(i, i + CONCURRENCY_LIMIT);
     const batchPromises = batch.map(async (chunk, batchIndex) => {
       const globalIndex = i + batchIndex;
-      if (!chunk.trim()) {
-        audioBuffers[globalIndex] = Buffer.alloc(0);
-        return;
-      }
       
       const request = {
-        input: { text: chunk },
-        voice: { languageCode: 'en-US', name: VOICE_NAME },
+        input: { ssml: chunk },
+        voice: voiceParams,
         audioConfig: { audioEncoding: 'MP3' as const },
       };
 
@@ -42,7 +83,6 @@ export const synthesizeSpeech = async (text: string): Promise<Buffer> => {
 
     await Promise.all(batchPromises);
     
-    // Add a small delay between batches to respect characters-per-minute quotas
     if (i + CONCURRENCY_LIMIT < chunks.length) {
       await new Promise(r => setTimeout(r, 1000));
     }

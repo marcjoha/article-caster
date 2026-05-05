@@ -1,10 +1,11 @@
 import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { deleteFile } from './storage';
 
 if (!getApps().length) {
   initializeApp({
     credential: applicationDefault(),
-    projectId: process.env.GOOGLE_CLOUD_PROJECT || 'airy-rock-454920-i5',
+    projectId: process.env.GOOGLE_CLOUD_PROJECT,
   });
 }
 
@@ -16,6 +17,7 @@ export interface Feed {
   description: string;
   unguessable_slug: string;
   cover_image_url?: string;
+  tts_voice?: string;
   created_at: Date;
 }
 
@@ -48,16 +50,41 @@ export const updateFeed = async (feedId: string, updates: Partial<Omit<Feed, 'id
 };
 
 export const deleteFeed = async (feedId: string) => {
+  // Fetch the feed first to get cover_image_url
+  const feedDoc = await db.collection('feeds').doc(feedId).get();
+  if (feedDoc.exists) {
+    const feedData = feedDoc.data() as Feed;
+    if (feedData.cover_image_url) {
+      await deleteFile(feedData.cover_image_url);
+    }
+  }
+
   // Delete the feed
   await db.collection('feeds').doc(feedId).delete();
   
+  const batch = db.batch();
+  const deleteFilePromises: Promise<void>[] = [];
+
   // Also delete all items associated with this feed
   const itemsSnapshot = await db.collection('items').where('feed_id', '==', feedId).get();
-  const batch = db.batch();
   itemsSnapshot.docs.forEach(doc => {
+    const itemData = doc.data() as FeedItem;
+    if (itemData.media_url) {
+      deleteFilePromises.push(deleteFile(itemData.media_url));
+    }
     batch.delete(doc.ref);
   });
-  await batch.commit();
+
+  // Also delete all ingestion records associated with this feed
+  const ingestionsSnapshot = await db.collection('ingestions').where('feed_id', '==', feedId).get();
+  ingestionsSnapshot.docs.forEach(doc => {
+    batch.delete(doc.ref);
+  });
+
+  await Promise.all([
+    batch.commit(),
+    ...deleteFilePromises
+  ]);
 };
 
 export const getFeeds = async (): Promise<Feed[]> => {

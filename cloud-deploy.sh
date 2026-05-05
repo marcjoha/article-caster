@@ -36,8 +36,13 @@ gcloud firestore indexes composite create --collection-group=items --field-confi
 gcloud firestore indexes composite create --collection-group=ingestions --field-config field-path=feed_id,order=ascending --field-config field-path=created_at,order=descending --project="$PROJECT_ID" 2>/dev/null || echo -e "${YELLOW}⚠ Index already exists or is currently building.${NC}"
 
 echo -e "${BLUE}ℹ Ensuring Cloud Tasks queue exists...${NC}"
-QUEUE_NAME="ingest-queue-$(date +%s)"
-gcloud tasks queues create "$QUEUE_NAME" --project="$PROJECT_ID" --location="europe-west1" || echo -e "${YELLOW}⚠ Queue creation skipped or failed.${NC}"
+QUEUE_NAME="ingest-queue"
+if ! gcloud tasks queues describe "$QUEUE_NAME" --project="$PROJECT_ID" --location="europe-west1" >/dev/null 2>&1; then
+  echo -e "${GREEN}✔ Creating queue $QUEUE_NAME...${NC}"
+  gcloud tasks queues create "$QUEUE_NAME" --project="$PROJECT_ID" --location="europe-west1"
+else
+  echo -e "${YELLOW}⚠ Queue $QUEUE_NAME already exists.${NC}"
+fi
 
 BUCKET_NAME="article-caster-media-$PROJECT_ID"
 echo -e "${BLUE}ℹ Ensuring GCS bucket exists: ${BUCKET_NAME}${NC}"
