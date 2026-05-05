@@ -4,13 +4,13 @@ description: Stops the local development server
 
 # Stop Dev Server
 
-This workflow stops the local development server for the Article-Caster application by terminating the process listening on port 3000 or any running Next.js dev processes.
+This workflow stops the local development server for the Article-Caster application.
 
-## 1. Stop the server
+## 1. Gracefully stop the server
 
-Run the following command to terminate the development server.
+Try a graceful SIGTERM first, wait briefly, then force-kill anything still lingering.
 
 // turbo
 ```bash
-lsof -t -i:3000 | xargs kill -9 || pkill -f "next dev" || echo "Server is not running."
+PIDS=$(lsof -t -i:3000 2>/dev/null); if [ -n "$PIDS" ]; then echo "$PIDS" | xargs kill 2>/dev/null; sleep 1; REMAINING=$(lsof -t -i:3000 2>/dev/null); if [ -n "$REMAINING" ]; then echo "$REMAINING" | xargs kill -9 2>/dev/null && echo "Force-killed remaining processes."; else echo "Server stopped gracefully."; fi; else echo "Server is not running."; fi
 ```
