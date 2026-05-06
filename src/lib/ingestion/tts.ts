@@ -41,8 +41,10 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buff
   
   for (const block of options.ssmlBlocks) {
     if (currentChunk.length + block.length + 10 > 4000) {
-      currentChunk += '</speak>';
-      chunks.push(currentChunk);
+      if (currentChunk !== '<speak>') {
+        currentChunk += '</speak>';
+        chunks.push(currentChunk);
+      }
       currentChunk = '<speak>' + block;
     } else {
       currentChunk += block;

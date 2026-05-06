@@ -31,6 +31,7 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
     if (!text) continue;
     
     const escapeXml = (str: string) => str
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -58,8 +59,10 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
 
         let remaining = sentence;
         while (remaining.length > 3000) {
-          ssmlBlocks.push(`${escapeXml(remaining.substring(0, 3000))}${breakTag}`);
-          remaining = remaining.substring(3000);
+          const chars = Array.from(remaining);
+          const safeChunk = chars.slice(0, 3000).join('');
+          ssmlBlocks.push(`${escapeXml(safeChunk)}${breakTag}`);
+          remaining = chars.slice(3000).join('');
         }
         currentChunk = remaining;
       } else {
