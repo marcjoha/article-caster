@@ -25,8 +25,8 @@ export async function POST(request: Request) {
       // Production: Enqueue to Cloud Tasks
       const client = new CloudTasksClient();
       const project = process.env.GOOGLE_CLOUD_PROJECT!;
-      const queue = process.env.QUEUE_NAME || 'ingest-queue';
-      const location = 'europe-west1';
+      const queue = process.env.QUEUE_NAME || 'article-caster-queue';
+      const location = process.env.CLOUD_TASKS_REGION || 'europe-west1';
       
       const parent = client.queuePath(project, location, queue);
       const serviceUrl = process.env.PUBLIC_URL;

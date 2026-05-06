@@ -19,13 +19,14 @@ else
   exit 1
 fi
 
-if [ -z "$GOOGLE_CLOUD_PROJECT" ] || [ -z "$GOOGLE_CLOUD_REGION" ]; then
-  echo -e "${RED}✖ GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_REGION must be set in .env${NC}"
+if [ -z "$GOOGLE_CLOUD_PROJECT" ] || [ -z "$GOOGLE_CLOUD_REGION" ] || [ -z "$CLOUD_TASKS_REGION" ]; then
+  echo -e "${RED}✖ GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_REGION, and CLOUD_TASKS_REGION must be set in .env${NC}"
   exit 1
 fi
 
 PROJECT_ID="$GOOGLE_CLOUD_PROJECT"
 REGION="$GOOGLE_CLOUD_REGION"
+TASKS_REGION="$CLOUD_TASKS_REGION"
 SERVICE_NAME="article-caster"
 
 echo -e "${BLUE}ℹ Enabling necessary Google Cloud APIs...${NC}"
@@ -44,10 +45,10 @@ gcloud firestore indexes composite create --collection-group=items --field-confi
 gcloud firestore indexes composite create --collection-group=ingestions --field-config field-path=feed_id,order=ascending --field-config field-path=created_at,order=descending --project="$PROJECT_ID" 2>/dev/null || echo -e "${YELLOW}⚠ Index already exists or is currently building.${NC}"
 
 echo -e "${BLUE}ℹ Ensuring Cloud Tasks queue exists...${NC}"
-QUEUE_NAME="ingest-queue"
-if ! gcloud tasks queues describe "$QUEUE_NAME" --project="$PROJECT_ID" --location="europe-west1" >/dev/null 2>&1; then
+QUEUE_NAME="article-caster-queue"
+if ! gcloud tasks queues describe "$QUEUE_NAME" --project="$PROJECT_ID" --location="$TASKS_REGION" >/dev/null 2>&1; then
   echo -e "${GREEN}✔ Creating queue $QUEUE_NAME...${NC}"
-  gcloud tasks queues create "$QUEUE_NAME" --project="$PROJECT_ID" --location="europe-west1"
+  gcloud tasks queues create "$QUEUE_NAME" --project="$PROJECT_ID" --location="$TASKS_REGION"
 else
   echo -e "${YELLOW}⚠ Queue $QUEUE_NAME already exists.${NC}"
 fi
@@ -92,6 +93,16 @@ gcloud beta run deploy "$SERVICE_NAME" \
   --command=node \
   --args=server.js \
   --timeout=3600 \
-  --set-env-vars="^@^GOOGLE_CLOUD_PROJECT=$PROJECT_ID@ADMIN_PASSCODE=$ADMIN_PASSCODE@GCS_BUCKET_NAME=$BUCKET_NAME@PUBLIC_URL=$PUBLIC_URL@QUEUE_NAME=$QUEUE_NAME"
+  --set-env-vars="^@^GOOGLE_CLOUD_PROJECT=$PROJECT_ID@ADMIN_PASSCODE=$ADMIN_PASSCODE@GCS_BUCKET_NAME=$BUCKET_NAME@PUBLIC_URL=$PUBLIC_URL@QUEUE_NAME=$QUEUE_NAME@CLOUD_TASKS_REGION=$TASKS_REGION"
+
+if [ -z "$PUBLIC_URL" ]; then
+  echo -e "${BLUE}ℹ Initial deployment complete. Fetching newly assigned PUBLIC_URL and updating service...${NC}"
+  NEW_PUBLIC_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --project="$PROJECT_ID" --format="value(status.url)")
+  gcloud run services update "$SERVICE_NAME" \
+    --region="$REGION" \
+    --project="$PROJECT_ID" \
+    --update-env-vars="PUBLIC_URL=$NEW_PUBLIC_URL"
+  echo -e "${GREEN}✔ Service updated with PUBLIC_URL=$NEW_PUBLIC_URL${NC}"
+fi
 
 echo -e "${GREEN}✔ Deployment complete!${NC}"
