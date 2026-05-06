@@ -56,7 +56,7 @@ export function DeleteFeedButton({ feedId }: { feedId: string }) {
           <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative', textAlign: 'left'}}>
             <h2 style={{marginTop: 0, color: '#ef4444'}}>Delete Podcast</h2>
             <p style={{marginBottom: '2rem', lineHeight: 1.5}}>
-              Are you sure you want to delete this podcast and ALL its items? This cannot be undone.
+              Are you sure you want to delete this podcast and ALL its episodes? This cannot be undone.
             </p>
 
             <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
@@ -114,9 +114,9 @@ export function DeleteItemButton({ itemId }: { itemId: string }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
           <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative', textAlign: 'left'}}>
-            <h2 style={{marginTop: 0, color: '#ef4444'}}>Delete Item</h2>
+            <h2 style={{marginTop: 0, color: '#ef4444'}}>Delete Episode</h2>
             <p style={{marginBottom: '2rem', lineHeight: 1.5}}>
-              Are you sure you want to delete this item?
+              Are you sure you want to delete this episode?
             </p>
             <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
               <button 

@@ -7,6 +7,7 @@ interface FeedFormProps {
     id: string;
     title: string;
     description: string;
+    category?: string;
     cover_image_url?: string;
     tts_voice?: string;
   };
@@ -29,6 +30,7 @@ export default function FeedForm({
 }: FeedFormProps) {
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
+  const [category, setCategory] = useState(initialData?.category || 'Technology');
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [existingCoverUrl] = useState(initialData?.cover_image_url || '');
   const [ttsVoice, setTtsVoice] = useState(initialData?.tts_voice || 'auto');
@@ -52,6 +54,7 @@ export default function FeedForm({
     const formData = new FormData();
     formData.append('title', title);
     formData.append('description', description);
+    formData.append('category', category);
     formData.append('tts_voice', ttsVoice);
     if (coverImageFile) {
       formData.append('cover_image', coverImageFile);
@@ -115,6 +118,21 @@ export default function FeedForm({
               <div className="form-group">
                 <label>Title</label>
                 <input type="text" className="input-field" value={title} onChange={e => setTitle(e.target.value)} required autoFocus />
+              </div>
+              <div className="form-group">
+                <label>Category</label>
+                <select className="input-field" value={category} onChange={e => setCategory(e.target.value)}>
+                  <option value="Technology">Technology</option>
+                  <option value="Business">Business</option>
+                  <option value="Education">Education</option>
+                  <option value="Science">Science</option>
+                  <option value="News">News</option>
+                  <option value="Society &amp; Culture">Society &amp; Culture</option>
+                  <option value="Arts">Arts</option>
+                  <option value="Health &amp; Fitness">Health &amp; Fitness</option>
+                  <option value="Comedy">Comedy</option>
+                  <option value="Sports">Sports</option>
+                </select>
               </div>
               <div className="form-group">
                 <label>Description (Optional)</label>

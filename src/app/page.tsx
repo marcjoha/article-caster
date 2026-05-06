@@ -20,9 +20,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const baseUrl = `${protocol}://${host}`;
   
-  const selectedFeed = feedId 
-    ? feeds.find(f => f.id === feedId) 
-    : (feeds.length > 0 ? feeds[0] : null);
+  const foundFeed = feedId ? feeds.find(f => f.id === feedId) : undefined;
+  const selectedFeed = foundFeed || (feeds.length > 0 ? feeds[0] : null);
     
   const activeFeedId = selectedFeed?.id;
   const items = activeFeedId ? await getFeedItems(activeFeedId) : [];
@@ -53,11 +52,28 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 <div style={{flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
                   <div className="feed-header-info" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                     <div>
-                      <h2 style={{margin: '0 0 0.5rem 0', fontSize: '2rem'}}>{selectedFeed.title}</h2>
+                      <h2 style={{margin: '0 0 0.5rem 0', fontSize: '2rem', display: 'flex', alignItems: 'center'}}>
+                        {selectedFeed.title}
+                        {selectedFeed.category && (
+                          <span style={{
+                            marginLeft: '1rem',
+                            fontSize: '0.875rem',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            color: '#60a5fa',
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '9999px',
+                            verticalAlign: 'middle',
+                            fontWeight: 'normal',
+                            border: '1px solid rgba(59, 130, 246, 0.2)'
+                          }}>
+                            {selectedFeed.category}
+                          </span>
+                        )}
+                      </h2>
                       <p style={{margin: 0, color: '#cbd5e1', fontSize: '1rem', lineHeight: 1.5, maxWidth: '600px'}}>
                         {selectedFeed.description || 'No description provided.'}
                       </p>
-                      <FeedUrlDisplay baseUrl={baseUrl} path={`/feed/${selectedFeed.unguessable_slug}`} />
+                      <FeedUrlDisplay baseUrl={baseUrl} path={`/feed/${selectedFeed.unguessable_slug}.xml`} />
                     </div>
                     <div className="feed-actions" style={{display: 'flex', gap: '1rem'}}>
                       <FeedForm 
@@ -65,6 +81,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                           id: selectedFeed.id!, 
                           title: selectedFeed.title, 
                           description: selectedFeed.description, 
+                          category: selectedFeed.category,
                           cover_image_url: selectedFeed.cover_image_url
                         }} 
                         buttonText="Edit" 
@@ -82,8 +99,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               <ProcessingList feedId={selectedFeed.id!} />
 
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
-                <h3 style={{margin: 0}}>Articles</h3>
-                <span style={{color: 'var(--text-secondary)', fontSize: '0.875rem'}}>{items.length} articles</span>
+                <h3 style={{margin: 0}}>Podcast Episodes</h3>
+                <span style={{color: 'var(--text-secondary)', fontSize: '0.875rem'}}>{items.length} {items.length === 1 ? 'podcast episode' : 'podcast episodes'}</span>
               </div>
               
               {items.length === 0 ? (
@@ -95,7 +112,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   border: '1px dashed #334155',
                   color: 'var(--text-secondary)'
                 }}>
-                  <p>No articles in this feed yet.</p>
+                  <p>No podcast episodes in this feed yet.</p>
                 </div>
               ) : (
                 <div className="article-table-container">
