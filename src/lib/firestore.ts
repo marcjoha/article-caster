@@ -15,6 +15,7 @@ export interface Feed {
   id?: string;
   title: string;
   description: string;
+  category?: string;
   unguessable_slug: string;
   cover_image_url?: string;
   tts_voice?: string;
@@ -166,4 +167,19 @@ export const getActiveIngestions = async (feedId: string): Promise<Ingestion[]> 
       return { ...data, created_at: data.created_at.toDate() } as Ingestion;
     })
     .filter(ing => ing.status === 'pending' || ing.status === 'processing' || ing.status === 'failed');
+};
+
+export const clearFailedIngestions = async (feedId: string) => {
+  const snapshot = await db.collection('ingestions')
+    .where('feed_id', '==', feedId)
+    .get();
+
+  const batch = db.batch();
+  snapshot.docs.forEach(doc => {
+    if (doc.data().status === 'failed') {
+      batch.delete(doc.ref);
+    }
+  });
+
+  await batch.commit();
 };

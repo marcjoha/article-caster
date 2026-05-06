@@ -14,6 +14,7 @@ type Ingestion = {
 
 export default function ProcessingList({ feedId }: { feedId: string }) {
   const [ingestions, setIngestions] = useState<Ingestion[]>([]);
+  const [isClearing, setIsClearing] = useState(false);
   const prevCountRef = useRef(0);
   const router = useRouter();
 
@@ -43,11 +44,39 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
 
   if (ingestions.length === 0) return null;
 
+  const hasFailed = ingestions.some(ing => ing.status === 'failed');
+
+  const handleClearFailed = async () => {
+    setIsClearing(true);
+    try {
+      const res = await fetch(`/api/ingestions?feedId=${feedId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setIngestions(prev => prev.filter(ing => ing.status !== 'failed'));
+      }
+    } catch (e) {
+      console.error('Failed to clear ingestions', e);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
     <div style={{ marginBottom: '3rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h3 style={{ margin: 0 }}>Processing</h3>
-        <span style={{ color: '#f59e0b', fontSize: '0.875rem' }}>{ingestions.length} in progress</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <h3 style={{ margin: 0 }}>Processing</h3>
+          {hasFailed && (
+            <button 
+              onClick={handleClearFailed}
+              disabled={isClearing}
+              className="btn btn-secondary"
+              style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', height: 'auto', minHeight: 'unset' }}
+            >
+              {isClearing ? 'Clearing...' : 'Clear failed'}
+            </button>
+          )}
+        </div>
+        <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{ingestions.length} in progress</span>
       </div>
       
       <div className="article-table-container">
@@ -61,7 +90,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
                     {formatDateTime(ing.created_at)}
                   </div>
                 </td>
-                <td className="article-audio-cell">
+                <td className="article-audio-cell" colSpan={2}>
                   {ing.status === 'failed' ? (
                     <div style={{ color: '#ef4444', fontSize: '0.875rem', fontWeight: 600, textAlign: 'right' }}>
                       Failed: {ing.error || 'Unknown error'}
@@ -73,7 +102,6 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
                     </div>
                   )}
                 </td>
-                <td className="article-actions-cell"></td>
               </tr>
             ))}
           </tbody>
