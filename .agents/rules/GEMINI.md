@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Project Rules
 
 ## Project structure
@@ -9,11 +13,13 @@
 - If new application logic or changes to the logic diverts from what's specified in [.agents/specs/SPEC.md](file:///.agents/specs/SPEC.md) flag this to the user and await further action.
 
 ## Documentation
-- README.md should always be kept up-to-date with major application functionality.
+- Keep all docs in `README.md`.
+- All major application functionality should be documented.
+- Docs should include a GCP topology image, always up-to-date with what's deployed.
 
 ## Deployment
-- Environment variables and secrets must be locally stored in `.env`. Ensure `.env` is immediately added to `.gitignore` and never committed or uploaded to any cloud service.
-- Never modify cloud services directly. Everything related to the deployment of this application should be mapped up in `cloud-deploy.sh` and `cloud-teardown.sh` respectively.
+- Environment variables and secrets must be locally stored in `.env`. Ensure `.env` is immediately added to `.gitignore` and never committed or uploaded to any cloud service. Maintain `.env.example` whenever variables are added or removed.
+- Never modify cloud services directly. Everything related to the deployment of this application should be defined in `cloud-deploy.sh` and `cloud-teardown.sh` respectively.
 - `cloud-deploy.sh` should be idempotent, meaning I can run it over and over without causing problems.
 - `cloud-teardown.sh` must act as a true nuclear option. It must exact the exact inverse of the deploy script and completely obliterate ALL provisioned infrastructure (including databases, buckets, and queues). Do not hesitate or skip deleting data out of caution; absolute infrastructure parity is required.
 

@@ -8,6 +8,19 @@ A personal podcast feed generator that converts web articles into spoken-word au
 - **Podcast Feed Management** — Create and manage multiple podcast feeds, each with its own title, description, and cover image.
 - **Private RSS Feeds** — Each feed gets a unique, unguessable URL that can be subscribed to in any podcast client.
 - **Admin Authentication** — Simple passcode-based login to protect the admin dashboard.
+- **Content Management** — Play/listen to generated audio directly in the admin UI, and remove items from feeds.
+
+## Architecture
+
+![GCP Topology](docs/gcp-topology.png)
+
+| Service | Purpose |
+|---|---|
+| **Cloud Run** | Hosts the Next.js application (admin UI + API routes + RSS feed endpoint) |
+| **Cloud Firestore** | Stores metadata for feeds, items, and ingestion records |
+| **Cloud Storage (GCS)** | Stores generated MP3 audio files, publicly accessible for podcast clients |
+| **Cloud Tasks** | Queues and processes long-running article ingestion jobs asynchronously |
+| **Cloud Text-to-Speech** | Synthesizes article text into natural-sounding audio using Journey voices |
 
 ## Tech Stack
 
@@ -15,13 +28,26 @@ A personal podcast feed generator that converts web articles into spoken-word au
 - **Infrastructure**: Google Cloud Run, Firestore, Cloud Storage, Cloud Tasks
 - **TTS**: Google Cloud Text-to-Speech (Journey voices)
 - **Article Extraction**: `@mozilla/readability` + `jsdom`
+- **Podcast Feed**: `podcast` npm package (RSS 2.0 with iTunes extensions)
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 24+
-- A Google Cloud project with Firestore, Cloud Storage, and Text-to-Speech APIs enabled
+- A Google Cloud project with Firestore, Cloud Storage, Cloud Tasks, and Text-to-Speech APIs enabled
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and fill in your values:
+
+| Variable | Description |
+|---|---|
+| `ADMIN_PASSCODE` | Passcode for admin dashboard login |
+| `GOOGLE_CLOUD_PROJECT` | Your GCP project ID |
+| `GCS_BUCKET_NAME` | Cloud Storage bucket name for audio files |
+| `GOOGLE_CLOUD_REGION` | GCP region for Cloud Run and Firestore (e.g., `europe-north2`) |
+| `CLOUD_TASKS_REGION` | GCP region for Cloud Tasks queue (e.g., `europe-west1`) |
 
 ### Local Development
 
@@ -44,10 +70,10 @@ Deploy to Google Cloud Run:
 ./cloud-deploy.sh
 ```
 
-Tear down:
+Tear down all infrastructure:
 
 ```bash
 ./cloud-teardown.sh
 ```
 
-See [SPEC.md](SPEC.md) for full application specification.
+See [SPEC.md](.agents/specs/SPEC.md) for full application specification.
