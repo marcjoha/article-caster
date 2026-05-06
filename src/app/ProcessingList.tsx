@@ -8,6 +8,7 @@ type Ingestion = {
   id: string;
   url: string;
   status: string;
+  error?: string;
   created_at: string;
 };
 
@@ -50,7 +51,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
       </div>
       
       <div className="article-table-container">
-        <table className="article-table" style={{ borderTopColor: '#f59e0b' }}>
+        <table className="article-table">
           <tbody>
             {ingestions.map(ing => (
               <tr key={ing.id}>
@@ -61,10 +62,16 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
                   </div>
                 </td>
                 <td className="article-audio-cell">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', color: '#f59e0b', fontSize: '0.875rem', fontWeight: 600 }}>
-                    <div className="spinner" style={{ width: '12px', height: '12px', border: '2px solid #f59e0b', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                    {ing.status === 'pending' ? 'Pending...' : 'Processing...'}
-                  </div>
+                  {ing.status === 'failed' ? (
+                    <div style={{ color: '#ef4444', fontSize: '0.875rem', fontWeight: 600, textAlign: 'right' }}>
+                      Failed: {ing.error || 'Unknown error'}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', color: '#f59e0b', fontSize: '0.875rem', fontWeight: 600 }}>
+                      <div className="spinner" style={{ width: '12px', height: '12px', border: '2px solid #f59e0b', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                      {ing.status === 'pending' ? 'Pending...' : 'Processing...'}
+                    </div>
+                  )}
                 </td>
                 <td className="article-actions-cell"></td>
               </tr>

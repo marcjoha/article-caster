@@ -99,7 +99,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 </div>
               ) : (
                 <div className="article-table-container">
-                  <table className="article-table" style={{ borderTopColor: 'var(--accent-color)' }}>
+                  <table className="article-table">
                     <tbody>
                       {items.map(item => (
                         <tr key={item.id}>
