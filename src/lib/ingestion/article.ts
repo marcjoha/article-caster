@@ -30,8 +30,7 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
     const text = el.textContent?.trim();
     if (!text) continue;
     
-    // Escape XML characters for valid SSML
-    const escapedText = text
+    const escapeXml = (str: string) => str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -39,12 +38,37 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
       .replace(/'/g, '&apos;');
 
     const tagName = el.tagName.toLowerCase();
-    if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
-      ssmlBlocks.push(`${escapedText}<break time="1s"/>`);
-    } else if (tagName === 'blockquote') {
-      ssmlBlocks.push(`${escapedText}<break time="800ms"/>`);
-    } else {
-      ssmlBlocks.push(`${escapedText}<break time="500ms"/>`);
+    const breakTag = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)
+      ? '<break time="1s"/>'
+      : tagName === 'blockquote'
+      ? '<break time="800ms"/>'
+      : '<break time="500ms"/>';
+
+    let currentChunk = '';
+    const sentences = text.split(/(?<=[.!?])\s+|(?=\n)/);
+
+    for (const sentence of sentences) {
+      if (!sentence.trim()) continue;
+
+      if (currentChunk.length + sentence.length > 3000) {
+        if (currentChunk) {
+          ssmlBlocks.push(`${escapeXml(currentChunk.trim())}${breakTag}`);
+          currentChunk = '';
+        }
+
+        let remaining = sentence;
+        while (remaining.length > 3000) {
+          ssmlBlocks.push(`${escapeXml(remaining.substring(0, 3000))}${breakTag}`);
+          remaining = remaining.substring(3000);
+        }
+        currentChunk = remaining;
+      } else {
+        currentChunk += (currentChunk ? ' ' : '') + sentence;
+      }
+    }
+
+    if (currentChunk.trim()) {
+      ssmlBlocks.push(`${escapeXml(currentChunk.trim())}${breakTag}`);
     }
   }
 
