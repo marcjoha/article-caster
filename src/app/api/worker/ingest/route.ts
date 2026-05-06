@@ -21,8 +21,8 @@ export async function POST(request: Request) {
     const feed = feedSnapshot.data() as Feed | undefined;
     const voicePreference = feed?.tts_voice;
 
-    const { title, textContent, language, ssmlBlocks } = await extractArticleContent(url);
-    const audioBuffer = await synthesizeSpeech({ ssmlBlocks, language, voicePreference });
+    const { title, textContent, language, textBlocks } = await extractArticleContent(url);
+    const audioBuffer = await synthesizeSpeech({ textBlocks, language, voicePreference });
     
     const fileId = uuidv4();
     const mediaUrl = await uploadFile(`article/${fileId}.mp3`, audioBuffer, 'audio/mpeg');

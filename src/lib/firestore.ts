@@ -165,5 +165,5 @@ export const getActiveIngestions = async (feedId: string): Promise<Ingestion[]> 
       const data = doc.data();
       return { ...data, created_at: data.created_at.toDate() } as Ingestion;
     })
-    .filter(ing => ing.status === 'pending' || ing.status === 'processing');
+    .filter(ing => ing.status === 'pending' || ing.status === 'processing' || ing.status === 'failed');
 };

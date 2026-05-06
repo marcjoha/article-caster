@@ -1,7 +1,7 @@
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 
-export const extractArticleContent = async (url: string): Promise<{ title: string; textContent: string; ssmlBlocks: string[]; language: string }> => {
+export const extractArticleContent = async (url: string): Promise<{ title: string; textContent: string; textBlocks: string[]; language: string }> => {
   const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
   const html = await response.text();
   const doc = new JSDOM(html, { url });
@@ -24,26 +24,16 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
   // Generate SSML blocks from HTML content
   const contentDoc = new JSDOM(article.content || '');
   const elements = contentDoc.window.document.body.children;
-  const ssmlBlocks: string[] = [];
+  const textBlocks: string[] = [];
   
   for (const el of Array.from(elements)) {
     const text = el.textContent?.trim();
     if (!text) continue;
     
-    const escapeXml = (str: string) => str
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-
     const tagName = el.tagName.toLowerCase();
-    const breakTag = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)
-      ? '<break time="1s"/>'
-      : tagName === 'blockquote'
-      ? '<break time="800ms"/>'
-      : '<break time="500ms"/>';
+    const pauseStr = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'].includes(tagName)
+      ? '\n\n'
+      : '\n';
 
     let currentChunk = '';
     const sentences = text.split(/(?<=[.!?])\s+|(?=\n)/);
@@ -53,7 +43,7 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
 
       if (currentChunk.length + sentence.length > 3000) {
         if (currentChunk) {
-          ssmlBlocks.push(`${escapeXml(currentChunk.trim())}${breakTag}`);
+          textBlocks.push(`${currentChunk.trim()}${pauseStr}`);
           currentChunk = '';
         }
 
@@ -61,7 +51,7 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
         while (remaining.length > 3000) {
           const chars = Array.from(remaining);
           const safeChunk = chars.slice(0, 3000).join('');
-          ssmlBlocks.push(`${escapeXml(safeChunk)}${breakTag}`);
+          textBlocks.push(`${safeChunk}${pauseStr}`);
           remaining = chars.slice(3000).join('');
         }
         currentChunk = remaining;
@@ -71,7 +61,7 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
     }
 
     if (currentChunk.trim()) {
-      ssmlBlocks.push(`${escapeXml(currentChunk.trim())}${breakTag}`);
+      textBlocks.push(`${currentChunk.trim()}${pauseStr}`);
     }
   }
 
@@ -79,6 +69,6 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
     title: article.title || 'Unknown Title',
     textContent: cleanedContent,
     language,
-    ssmlBlocks,
+    textBlocks,
   };
 };

@@ -5,7 +5,7 @@ const client = new textToSpeech.TextToSpeechClient({
 });
 
 export interface SynthesizeOptions {
-  ssmlBlocks: string[];
+  textBlocks: string[];
   language: string;
   voicePreference?: string;
 }
@@ -37,22 +37,20 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buff
   const voiceParams = resolveVoice(options.language, options.voicePreference);
   
   const chunks: string[] = [];
-  let currentChunk = '<speak>';
+  let currentChunk = '';
   
-  for (const block of options.ssmlBlocks) {
-    if (currentChunk.length + block.length + 10 > 4000) {
-      if (currentChunk !== '<speak>') {
-        currentChunk += '</speak>';
+  for (const block of options.textBlocks) {
+    if (currentChunk.length + block.length > 4000) {
+      if (currentChunk.trim()) {
         chunks.push(currentChunk);
       }
-      currentChunk = '<speak>' + block;
+      currentChunk = block;
     } else {
       currentChunk += block;
     }
   }
   
-  if (currentChunk !== '<speak>') {
-    currentChunk += '</speak>';
+  if (currentChunk.trim()) {
     chunks.push(currentChunk);
   }
 
@@ -69,7 +67,7 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buff
       const globalIndex = i + batchIndex;
       
       const request = {
-        input: { ssml: chunk },
+        input: { text: chunk },
         voice: voiceParams,
         audioConfig: { audioEncoding: 'MP3' as const },
       };
