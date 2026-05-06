@@ -61,7 +61,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
                   </div>
                 </td>
                 <td className="article-audio-cell">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f59e0b', fontSize: '0.875rem', fontWeight: 600 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', color: '#f59e0b', fontSize: '0.875rem', fontWeight: 600 }}>
                     <div className="spinner" style={{ width: '12px', height: '12px', border: '2px solid #f59e0b', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                     {ing.status === 'pending' ? 'Pending...' : 'Processing...'}
                   </div>
