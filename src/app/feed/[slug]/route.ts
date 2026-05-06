@@ -3,7 +3,8 @@ import { getFeedBySlug, getFeedItems } from '@/lib/firestore';
 import { generatePodcastRss } from '@/lib/feed/generator';
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+  let { slug } = await params;
+  slug = slug.replace(/\.xml$/, '');
   const feed = await getFeedBySlug(slug);
   
   if (!feed) {

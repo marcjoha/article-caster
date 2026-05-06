@@ -2,7 +2,7 @@ import { Podcast } from 'podcast';
 import { Feed, FeedItem } from '../firestore';
 
 export const generatePodcastRss = (feed: Feed, items: FeedItem[], hostUrl: string): string => {
-  const feedUrl = `${hostUrl}/feed/${feed.unguessable_slug}`;
+  const feedUrl = `${hostUrl}/feed/${feed.unguessable_slug}.xml`;
 
   const podcast = new Podcast({
     title: feed.title,
@@ -11,14 +11,15 @@ export const generatePodcastRss = (feed: Feed, items: FeedItem[], hostUrl: strin
     siteUrl: hostUrl,
     imageUrl: feed.cover_image_url || `${hostUrl}/default-cover.png`,
     author: 'article-caster',
-    language: 'en',
+    language: 'en-US',
     pubDate: new Date().toUTCString(),
     ttl: 60,
     itunesAuthor: 'article-caster',
     itunesSubtitle: feed.description,
     itunesSummary: feed.description,
-    itunesOwner: { name: 'article-caster', email: 'admin@article-caster.local' },
+    itunesOwner: { name: 'article-caster', email: 'admin@article-caster.com' },
     itunesImage: feed.cover_image_url || `${hostUrl}/default-cover.png`,
+    itunesCategory: [{ text: feed.category || 'Technology' }],
   });
 
   items.forEach(item => {

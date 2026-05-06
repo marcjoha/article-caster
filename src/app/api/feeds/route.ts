@@ -7,6 +7,7 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const title = formData.get('title') as string;
   const description = formData.get('description') as string;
+  const category = formData.get('category') as string | undefined;
   const tts_voice = formData.get('tts_voice') as string | undefined;
   const coverImageFile = formData.get('cover_image') as File | null;
   
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
   const feed = await createFeed({
     title,
     description,
+    category,
     unguessable_slug: slug,
     ...(cover_image_url && { cover_image_url }),
     ...(tts_voice && { tts_voice }),
