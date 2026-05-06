@@ -22,7 +22,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 
 ## Data Model
 
-*   **Feeds**: `id`, `title`, `description`, `cover_image_url`, `tts_voice`, `unguessable_slug`, `created_at`
+*   **Feeds**: `id`, `title`, `description`, `category` (optional), `cover_image_url`, `tts_voice`, `unguessable_slug`, `created_at`
 *   **Items**: `id`, `feed_id`, `title`, `description`, `source_url`, `media_url` (Cloud Storage path), `type` (audio), `size_bytes`, `duration_seconds`, `created_at`
 
 ## Technology Stack
