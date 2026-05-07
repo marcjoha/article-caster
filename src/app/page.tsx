@@ -83,7 +83,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                           title: selectedFeed.title, 
                           description: selectedFeed.description, 
                           category: selectedFeed.category,
-                          cover_image_url: selectedFeed.cover_image_url
+                          cover_image_url: selectedFeed.cover_image_url,
+                          author: selectedFeed.author,
+                          tts_voice: selectedFeed.tts_voice,
+                          audio_prefix_message: selectedFeed.audio_prefix_message
                         }} 
                         buttonText="Edit" 
                       />

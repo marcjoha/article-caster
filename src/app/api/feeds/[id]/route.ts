@@ -22,15 +22,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     cover_image_url = await uploadFile(`covers/${Date.now()}-${safeName}`, buffer, coverImageFile.type);
   }
   
-  await updateFeed(id, {
+  const updates: Record<string, unknown> = {
     title,
     description,
     category,
-    ...(author && { author }),
-    cover_image_url,
-    tts_voice,
-    audio_prefix_message,
-  });
+  };
+  
+  if (author !== null) updates.author = author;
+  if (cover_image_url !== undefined && cover_image_url !== null) updates.cover_image_url = cover_image_url;
+  if (tts_voice !== null) updates.tts_voice = tts_voice;
+  if (audio_prefix_message !== null) updates.audio_prefix_message = audio_prefix_message;
+
+  await updateFeed(id, updates);
   
   return NextResponse.json({ success: true });
 }
