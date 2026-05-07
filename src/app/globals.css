@@ -178,10 +178,14 @@ body {
   margin-bottom: 0.25rem;
   color: var(--text-primary);
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 500px;
 }
 
 .article-title a {
-  color: inherit;
+  color: var(--accent-color);
   text-decoration: none;
 }
 

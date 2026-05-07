@@ -16,6 +16,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
   const [rssLoading, setRssLoading] = useState(false);
   const [syndicationToDelete, setSyndicationToDelete] = useState<string | null>(null);
   const [isDeletingRss, setIsDeletingRss] = useState(false);
+  const [initialAction, setInitialAction] = useState('future');
 
   const handleIngestArticle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +51,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
     try {
       const res = await fetch('/api/rss-feeds', {
         method: 'POST',
-        body: JSON.stringify({ feedId, url: rssUrl }),
+        body: JSON.stringify({ feedId, url: rssUrl, initialAction }),
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) {
@@ -141,7 +142,12 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
           <form onSubmit={handleAddRss} style={{ marginBottom: '1.5rem' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <input type="url" className="input-field" value={rssUrl} onChange={e => setRssUrl(e.target.value)} placeholder="https://example.com/rss.xml" required style={{ marginBottom: 0 }} />
+                <input type="url" className="input-field" value={rssUrl} onChange={e => setRssUrl(e.target.value)} placeholder="https://example.com/rss.xml" required style={{ marginBottom: 0, flex: 1 }} />
+                <select className="input-field" value={initialAction} onChange={e => setInitialAction(e.target.value)} style={{ marginBottom: 0, width: 'auto' }}>
+                  <option value="future">Add only future posts</option>
+                  <option value="recent">Also add most recent post</option>
+                  <option value="all">Also add all historical posts</option>
+                </select>
                 <button type="submit" className="btn" disabled={rssLoading} style={{ whiteSpace: 'nowrap' }}>
                   {rssLoading ? 'Adding...' : 'Subscribe'}
                 </button>
@@ -156,9 +162,25 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
                   {syndications.map(syn => (
                     <tr key={syn.id}>
                       <td style={{ padding: '0.75rem 1rem' }}>
-                        <div className="article-title">{syn.title || syn.url}</div>
-                        <div className="article-meta" style={{ opacity: 0.7 }}>
-                          {syn.last_checked_at ? `Last checked: ${formatDateTime(syn.last_checked_at)}` : 'Not checked yet'}
+                        <div className="article-title">
+                          <a href={syn.url} target="_blank" rel="noreferrer">
+                            {syn.title || syn.url}
+                          </a>
+                        </div>
+                        <div className="article-meta">
+                          {syn.last_checked_at ? `Last checked ${formatDateTime(syn.last_checked_at)}` : 'Not checked yet'}
+                          {syn.url && (
+                            <>
+                              <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>•</span>
+                              {(() => {
+                                try {
+                                  return new URL(syn.url).hostname.replace(/^www\./, '');
+                                } catch {
+                                  return syn.url;
+                                }
+                              })()}
+                            </>
+                          )}
                         </div>
                       </td>
                       <td className="article-actions-cell" style={{ padding: '0.75rem 1rem' }}>
