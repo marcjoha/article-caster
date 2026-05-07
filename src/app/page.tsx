@@ -101,7 +101,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
                 <h3 style={{margin: 0}}>Podcast Episodes</h3>
-                <span style={{color: 'var(--text-secondary)', fontSize: '0.875rem'}}>{items.length} {items.length === 1 ? 'podcast episode' : 'podcast episodes'}</span>
+                <span style={{color: 'var(--text-secondary)', fontSize: '0.875rem'}}>{items.length} {items.length === 1 ? 'episode' : 'episodes'}</span>
               </div>
               
               {items.length === 0 ? (
@@ -133,7 +133,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                               )}
                             </div>
                             <div className="article-meta">
-                              {formatDateTime(item.created_at)}
+                              Added at {formatDateTime(item.created_at)}
                               {item.source_url && (
                                 <>
                                   <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>•</span>

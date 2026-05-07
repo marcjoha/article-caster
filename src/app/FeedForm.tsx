@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface FeedFormProps {
@@ -33,11 +33,51 @@ export default function FeedForm({
   const [category, setCategory] = useState(initialData?.category || 'Technology');
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [existingCoverUrl] = useState(initialData?.cover_image_url || '');
-  const [ttsVoice, setTtsVoice] = useState(initialData?.tts_voice || 'auto');
+  const [ttsVoice, setTtsVoice] = useState((!initialData?.tts_voice || initialData.tts_voice === 'auto') ? 'Puck' : initialData.tts_voice);
   const [loading, setLoading] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = externalIsOpen || internalIsOpen;
   const router = useRouter();
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio();
+    audioRef.current.onended = () => {
+      setIsPlaying(false);
+      setPreviewLoading(false);
+    };
+    audioRef.current.onerror = () => {
+      setPreviewLoading(false);
+      setIsPlaying(false);
+      alert('Failed to play preview');
+    };
+    audioRef.current.onplaying = () => {
+      setPreviewLoading(false);
+      setIsPlaying(true);
+    };
+  }, []);
+
+  const handlePreview = () => {
+    if (!audioRef.current) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    setPreviewLoading(true);
+    audioRef.current.src = `/api/tts/preview?voice=${ttsVoice}&t=${Date.now()}`;
+    audioRef.current.play().catch(err => {
+      console.error('Playback error:', err);
+      setPreviewLoading(false);
+      setIsPlaying(false);
+      alert('Failed to play preview');
+    });
+  };
 
   const handleClose = () => {
     if (onExternalClose) onExternalClose();
@@ -149,17 +189,36 @@ export default function FeedForm({
               </div>
               <div className="form-group">
                 <label>Narrator Voice</label>
-                <select className="input-field" value={ttsVoice} onChange={e => setTtsVoice(e.target.value)}>
-                  <option value="auto">Auto-detect Language (Default)</option>
-                  <option value="en-US-Journey-F">US Female (Journey)</option>
-                  <option value="en-US-Journey-D">US Male (Journey)</option>
-                  <option value="en-GB-Studio-C">UK Female (Studio)</option>
-                  <option value="en-GB-Studio-B">UK Male (Studio)</option>
-                  <option value="sv-SE-Neural2-A">Swedish Female (Neural2)</option>
-                  <option value="es-ES-Neural2-A">Spanish Female (Neural2)</option>
-                  <option value="fr-FR-Neural2-A">French Female (Neural2)</option>
-                  <option value="de-DE-Neural2-A">German Female (Neural2)</option>
-                </select>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                  <select className="input-field" value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} style={{ flex: 1, marginBottom: 0 }}>
+                    <option value="Puck">Puck (Default)</option>
+                    <option value="Kore">Kore</option>
+                    <option value="Aoede">Aoede</option>
+                    <option value="Charon">Charon</option>
+                    <option value="Fenrir">Fenrir</option>
+                    <option value="Leda">Leda</option>
+                  </select>
+                  <button 
+                    type="button" 
+                    className="btn" 
+                    style={{ 
+                      background: isPlaying ? 'var(--bg-secondary)' : 'var(--accent-color)', 
+                      color: isPlaying ? 'var(--text-primary)' : '#fff', 
+                      border: '1px solid ' + (isPlaying ? 'var(--border-color)' : 'var(--accent-color)'),
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      width: '130px',
+                      justifyContent: 'center',
+                      padding: '0.75rem 1rem',
+                      boxSizing: 'border-box'
+                    }}
+                    onClick={handlePreview}
+                    disabled={previewLoading && !isPlaying}
+                  >
+                    {previewLoading ? 'Loading...' : isPlaying ? '⏹ Stop' : '▶ Play'}
+                  </button>
+                </div>
               </div>
               <button type="submit" className="btn" disabled={loading} style={{width: '100%'}}>
                 {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Podcast')}

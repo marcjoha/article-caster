@@ -20,13 +20,13 @@ A personal podcast feed generator that converts web articles into spoken-word au
 | **Cloud Firestore** | Stores metadata for feeds, items, and ingestion records |
 | **Cloud Storage (GCS)** | Stores generated MP3 audio files, publicly accessible for podcast clients |
 | **Cloud Tasks** | Queues and processes long-running article ingestion jobs asynchronously |
-| **Cloud Text-to-Speech** | Synthesizes article text into natural-sounding audio using Journey voices |
+| **Cloud Text-to-Speech** | Synthesizes article text into natural-sounding audio using Gemini 3.1 Flash TTS |
 
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
 - **Infrastructure**: Google Cloud Run, Firestore, Cloud Storage, Cloud Tasks
-- **TTS**: Google Cloud Text-to-Speech (Journey voices)
+- **TTS**: Vertex AI Gemini 3.1 Flash TTS
 - **Article Extraction**: `@mozilla/readability` + `jsdom`
 - **Podcast Feed**: `podcast` npm package (RSS 2.0 with iTunes extensions)
 

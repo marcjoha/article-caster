@@ -2,7 +2,19 @@ import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 
 export const extractArticleContent = async (url: string): Promise<{ title: string; textContent: string; textBlocks: string[]; language: string }> => {
-  const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  const response = await fetch(url, { 
+    signal: AbortSignal.timeout(15000),
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5'
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch article (Status: ${response.status})`);
+  }
+  
   const html = await response.text();
   const doc = new JSDOM(html, { url });
   
