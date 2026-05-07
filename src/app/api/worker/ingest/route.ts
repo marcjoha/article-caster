@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       media_url: mediaUrl,
       type: 'audio',
       size_bytes: audioBuffer.length,
-      duration_seconds: Math.round(audioBuffer.length / 32000), // rough estimate for MP3
+      duration_seconds: Math.round(audioBuffer.length / 4000), // rough estimate for 32kbps MP3
     });
 
     // Mark as completed
