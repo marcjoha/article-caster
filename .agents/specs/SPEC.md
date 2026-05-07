@@ -35,6 +35,6 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 *   **Core Integrations**:
     *   **Google Cloud Tasks**: Used to queue and process long-running article ingestion tasks asynchronously to prevent web request timeouts.
     *   **Article Extraction**: `@mozilla/readability` paired with `jsdom` to extract clean text.
-    *   **Text-to-Speech (TTS)**: `@google-cloud/text-to-speech` API (specifically using the LLM-based "Journey" voices for highly expressive, human-like podcast audio).
+    *   **Text-to-Speech (TTS)**: Gemini 3.1 Flash TTS API for highly expressive, human-like podcast audio.
     *   **Podcast Feed**: `podcast` npm package (supports RSS 2.0 with iTunes extensions for audio enclosures).
 
