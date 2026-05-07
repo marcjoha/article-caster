@@ -15,10 +15,12 @@ export interface Feed {
   id?: string;
   title: string;
   description: string;
+  author?: string;
   category?: string;
   unguessable_slug: string;
   cover_image_url?: string;
   tts_voice?: string;
+  audio_prefix_message?: string;
   created_at: Date;
 }
 

@@ -13,6 +13,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
    - The admin can create new podcast feeds and provide relevant metadata (e.g., title, description, cover image).
    - The admin can view, edit, and delete existing feeds.
    - The feed URL generated is public to allow podcast clients to subscribe, but uses an "unguessable" random string (e.g., UUID) to protect privacy.
+   - Whenever modifications are made to the podcast feed generation logic, the resulting feeds must be strictly validated against the latest Apple Podcasts or RSS feed standards.
 3. **Content Ingestion**:
    - **Articles**: The admin can submit an article URL. The system offloads the processing to a Google Cloud Tasks background worker, which extracts the main text content, removes ads and clutter, and uses a Text-to-Speech (TTS) service to generate an audio file.
 4. **Content Management**:

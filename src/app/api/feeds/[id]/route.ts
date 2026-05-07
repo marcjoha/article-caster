@@ -9,7 +9,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const title = formData.get('title') as string;
   const description = formData.get('description') as string;
   const category = formData.get('category') as string | undefined;
+  const author = formData.get('author') as string | undefined;
   const tts_voice = formData.get('tts_voice') as string | undefined;
+  const audio_prefix_message = formData.get('audio_prefix_message') as string | undefined;
   const coverImageFile = formData.get('cover_image') as File | null;
   
   let cover_image_url = formData.get('cover_image_url') as string | undefined;
@@ -24,8 +26,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     title,
     description,
     category,
+    ...(author && { author }),
     cover_image_url,
     tts_voice,
+    audio_prefix_message,
   });
   
   return NextResponse.json({ success: true });

@@ -22,6 +22,11 @@ export async function POST(request: Request) {
     const voicePreference = feed?.tts_voice;
 
     const { title, textContent, language, textBlocks } = await extractArticleContent(url);
+    
+    if (feed?.audio_prefix_message) {
+      textBlocks.unshift(`${feed.audio_prefix_message}\n\n`);
+    }
+
     const audioBuffer = await synthesizeSpeech({ textBlocks, language, voicePreference });
     
     const fileId = uuidv4();
