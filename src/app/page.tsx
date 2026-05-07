@@ -1,9 +1,9 @@
 import { headers } from 'next/headers';
 import Image from 'next/image';
-import { getFeeds, getFeedItems } from '@/lib/firestore';
+import { getFeeds, getFeedItems, getSyndications } from '@/lib/firestore';
 import FeedForm from './FeedForm';
 import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay } from './ClientButtons';
-import IngestionForm from './IngestionForm';
+import IngestionTabs from './IngestionTabs';
 import FeedSelector from './FeedSelector';
 import ProcessingList from './ProcessingList';
 
@@ -25,6 +25,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     
   const activeFeedId = selectedFeed?.id;
   const items = activeFeedId ? await getFeedItems(activeFeedId) : [];
+  const syndications = activeFeedId ? await getSyndications(activeFeedId) : [];
 
   return (
     <div className="container" style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -93,7 +94,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               </div>
 
               <div style={{marginTop: '2rem', marginBottom: '3rem'}}>
-                <IngestionForm feedId={selectedFeed.id!} />
+                <IngestionTabs feedId={selectedFeed.id!} syndications={syndications} />
               </div>
 
               <ProcessingList feedId={selectedFeed.id!} />

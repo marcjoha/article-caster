@@ -30,7 +30,7 @@ TASKS_REGION="$CLOUD_TASKS_REGION"
 SERVICE_NAME="article-caster"
 
 echo -e "${BLUE}ℹ Enabling necessary Google Cloud APIs...${NC}"
-gcloud services enable firestore.googleapis.com texttospeech.googleapis.com storage.googleapis.com run.googleapis.com cloudbuild.googleapis.com cloudtasks.googleapis.com --project="$PROJECT_ID"
+gcloud services enable firestore.googleapis.com texttospeech.googleapis.com storage.googleapis.com run.googleapis.com cloudbuild.googleapis.com cloudtasks.googleapis.com cloudscheduler.googleapis.com --project="$PROJECT_ID"
 
 echo -e "${BLUE}ℹ Ensuring Firestore database exists...${NC}"
 if ! gcloud firestore databases describe --database="(default)" --project="$PROJECT_ID" >/dev/null 2>&1; then
@@ -43,6 +43,7 @@ fi
 echo -e "${BLUE}ℹ Ensuring Firestore indexes are created...${NC}"
 gcloud firestore indexes composite create --collection-group=items --field-config field-path=feed_id,order=ascending --field-config field-path=created_at,order=descending --project="$PROJECT_ID" 2>/dev/null || echo -e "${YELLOW}⚠ Index already exists or is currently building.${NC}"
 gcloud firestore indexes composite create --collection-group=ingestions --field-config field-path=feed_id,order=ascending --field-config field-path=created_at,order=descending --project="$PROJECT_ID" 2>/dev/null || echo -e "${YELLOW}⚠ Index already exists or is currently building.${NC}"
+gcloud firestore indexes composite create --collection-group=syndications --field-config field-path=feed_id,order=ascending --field-config field-path=created_at,order=descending --project="$PROJECT_ID" 2>/dev/null || echo -e "${YELLOW}⚠ Index already exists or is currently building.${NC}"
 
 echo -e "${BLUE}ℹ Ensuring Cloud Tasks queue exists...${NC}"
 QUEUE_NAME="article-caster-queue"
@@ -103,6 +104,28 @@ if [ -z "$PUBLIC_URL" ]; then
     --project="$PROJECT_ID" \
     --update-env-vars="PUBLIC_URL=$NEW_PUBLIC_URL"
   echo -e "${GREEN}✔ Service updated with PUBLIC_URL=$NEW_PUBLIC_URL${NC}"
+fi
+
+echo -e "${BLUE}ℹ Ensuring Cloud Scheduler job exists...${NC}"
+JOB_NAME="article-caster-syndication-cron"
+TARGET_URI="${NEW_PUBLIC_URL:-$PUBLIC_URL}/api/worker/rss-cron"
+
+if ! gcloud scheduler jobs describe "$JOB_NAME" --location="$TASKS_REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+  echo -e "${GREEN}✔ Creating Cloud Scheduler job $JOB_NAME...${NC}"
+  gcloud scheduler jobs create http "$JOB_NAME" \
+    --project="$PROJECT_ID" \
+    --location="$TASKS_REGION" \
+    --schedule="0 2 * * *" \
+    --uri="$TARGET_URI" \
+    --http-method=GET
+else
+  echo -e "${GREEN}✔ Updating Cloud Scheduler job $JOB_NAME...${NC}"
+  gcloud scheduler jobs update http "$JOB_NAME" \
+    --project="$PROJECT_ID" \
+    --location="$TASKS_REGION" \
+    --schedule="0 2 * * *" \
+    --uri="$TARGET_URI" \
+    --http-method=GET
 fi
 
 echo -e "${GREEN}✔ Deployment complete!${NC}"

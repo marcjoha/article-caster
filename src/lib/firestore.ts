@@ -76,9 +76,15 @@ export const deleteFeed = async (feedId: string) => {
     batch.delete(doc.ref);
   });
 
-  // Also delete all ingestion records associated with this feed
+  // Also delete all ingestions associated with this feed
   const ingestionsSnapshot = await db.collection('ingestions').where('feed_id', '==', feedId).get();
   ingestionsSnapshot.docs.forEach(doc => {
+    batch.delete(doc.ref);
+  });
+
+  // Also delete all syndications associated with this feed
+  const syndicationsSnapshot = await db.collection('syndications').where('feed_id', '==', feedId).get();
+  syndicationsSnapshot.docs.forEach(doc => {
     batch.delete(doc.ref);
   });
 
@@ -182,4 +188,59 @@ export const clearFailedIngestions = async (feedId: string) => {
   });
 
   await batch.commit();
+};
+
+export interface Syndication {
+  id?: string;
+  feed_id: string;
+  url: string;
+  title?: string;
+  last_checked_at?: Date;
+  created_at: Date;
+}
+
+export const createSyndication = async (syndication: Omit<Syndication, 'id' | 'created_at'>) => {
+  const docRef = db.collection('syndications').doc();
+  const data: Syndication = {
+    ...syndication,
+    id: docRef.id,
+    created_at: new Date(),
+  };
+  await docRef.set(data);
+  return data;
+};
+
+export const getSyndications = async (feedId: string): Promise<Syndication[]> => {
+  const snapshot = await db.collection('syndications')
+    .where('feed_id', '==', feedId)
+    .orderBy('created_at', 'desc')
+    .get();
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return { 
+      ...data, 
+      created_at: data.created_at.toDate(),
+      last_checked_at: data.last_checked_at ? data.last_checked_at.toDate() : undefined
+    } as Syndication;
+  });
+};
+
+export const getAllSyndications = async (): Promise<Syndication[]> => {
+  const snapshot = await db.collection('syndications').get();
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return { 
+      ...data, 
+      created_at: data.created_at.toDate(),
+      last_checked_at: data.last_checked_at ? data.last_checked_at.toDate() : undefined
+    } as Syndication;
+  });
+};
+
+export const updateSyndication = async (id: string, updates: Partial<Pick<Syndication, 'last_checked_at' | 'title'>>) => {
+  await db.collection('syndications').doc(id).update(updates);
+};
+
+export const deleteSyndication = async (id: string) => {
+  await db.collection('syndications').doc(id).delete();
 };
