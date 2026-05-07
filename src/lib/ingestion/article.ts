@@ -1,5 +1,8 @@
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
+import dns from 'node:dns';
+
+dns.setDefaultResultOrder('ipv4first');
 
 export const extractArticleContent = async (url: string): Promise<{ title: string; textContent: string; textBlocks: string[]; language: string }> => {
   const response = await fetch(url, { 
