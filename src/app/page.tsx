@@ -30,7 +30,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   return (
     <div className="container" style={{ maxWidth: '1000px', margin: '0 auto' }}>
       <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <h1 style={{margin: 0, fontSize: '1.5rem'}}>article-caster</h1>
+        <Image src="/logo.svg" alt="article-caster logo" width={260} height={44} priority />
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <FeedSelector feeds={feeds} activeFeedId={activeFeedId} />
           <FeedForm buttonText="New Podcast" />

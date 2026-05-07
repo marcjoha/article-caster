@@ -1,19 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 60" width="320" height="60">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 44" width="260" height="44">
   <style>
     .logo-text {
       font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       font-size: 42px;
       font-weight: 700;
-      letter-spacing: -0.04em;
+      letter-spacing: -0.01em;
     }
     .white-part {
       fill: #ffffff;
     }
     .grey-part {
-      fill: #9ca3af; /* Tailwind gray-400 equivalent for a smooth grey */
+      fill: #9ca3af;
     }
   </style>
-  <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" class="logo-text">
+  <text x="0" y="22" dominant-baseline="central" text-anchor="start" class="logo-text">
     <tspan class="white-part">article</tspan><tspan class="grey-part">-caster</tspan>
   </text>
 </svg>

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/logo.svg" alt="article-caster logo" width="400" />
+</p>
+
 # article-caster
 
 A personal podcast feed generator that converts web articles into spoken-word audio. Paste an article URL, and article-caster will extract the text, synthesize it into natural-sounding speech using Google Cloud TTS, and add it to a private podcast feed you can subscribe to in any podcast app.
