@@ -3,7 +3,7 @@ import { createSyndication, deleteSyndication } from '@/lib/firestore';
 
 export async function POST(request: Request) {
   try {
-    const { feedId, url } = await request.json();
+    const { feedId, url, initialAction = 'recent' } = await request.json();
     
     if (!feedId || !url) {
       return NextResponse.json({ error: 'feedId and url are required' }, { status: 400 });
@@ -19,33 +19,40 @@ export async function POST(request: Request) {
       const parser = new Parser();
       const feed = await parser.parseURL(url);
       
-      if (feed.items && feed.items.length > 0) {
-        const itemUrl = feed.items[0].link;
-        if (itemUrl) {
-          const { createIngestion } = await import('@/lib/firestore');
-          const ingestion = await createIngestion({
-            feed_id: feedId,
-            url: itemUrl,
-          });
+      if (feed.items && feed.items.length > 0 && initialAction !== 'future') {
+        const { createIngestion } = await import('@/lib/firestore');
+        const isLocal = !process.env.K_SERVICE && process.env.NODE_ENV === 'development';
+        let cloudTasksClient: import('@google-cloud/tasks').CloudTasksClient | null = null;
+        let parent: string = '';
+        let serviceUrl: string = '';
 
-          const isLocal = !process.env.K_SERVICE && process.env.NODE_ENV === 'development';
-          if (isLocal) {
-            fetch(`http://localhost:3000/api/worker/ingest`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ingestionId: ingestion.id, feedId, url: itemUrl }),
-            }).catch(console.error);
-          } else {
-            const { CloudTasksClient } = await import('@google-cloud/tasks');
-            const client = new CloudTasksClient();
-            const project = process.env.GOOGLE_CLOUD_PROJECT!;
-            const queue = process.env.QUEUE_NAME || 'article-caster-queue';
-            const location = process.env.CLOUD_TASKS_REGION || 'europe-west1';
-            
-            const parent = client.queuePath(project, location, queue);
-            const serviceUrl = process.env.PUBLIC_URL;
-            
-            if (serviceUrl) {
+        if (!isLocal) {
+          const { CloudTasksClient } = await import('@google-cloud/tasks');
+          cloudTasksClient = new CloudTasksClient();
+          const project = process.env.GOOGLE_CLOUD_PROJECT!;
+          const queue = process.env.QUEUE_NAME || 'article-caster-queue';
+          const location = process.env.CLOUD_TASKS_REGION || 'europe-west1';
+          parent = cloudTasksClient.queuePath(project, location, queue);
+          serviceUrl = process.env.PUBLIC_URL || '';
+        }
+
+        const itemsToProcess = initialAction === 'all' ? feed.items : [feed.items[0]];
+
+        for (const item of itemsToProcess) {
+          const itemUrl = item.link;
+          if (itemUrl) {
+            const ingestion = await createIngestion({
+              feed_id: feedId,
+              url: itemUrl,
+            });
+
+            if (isLocal) {
+              fetch(`http://localhost:3000/api/worker/ingest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ingestionId: ingestion.id, feedId, url: itemUrl }),
+              }).catch(console.error);
+            } else if (serviceUrl) {
               const task = {
                 httpRequest: {
                   httpMethod: 'POST' as const,
@@ -56,7 +63,9 @@ export async function POST(request: Request) {
                   },
                 },
               };
-              await client.createTask({ parent, task });
+              if (cloudTasksClient) {
+                await cloudTasksClient.createTask({ parent, task });
+              }
             }
           }
         }
