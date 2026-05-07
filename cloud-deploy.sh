@@ -49,9 +49,10 @@ echo -e "${BLUE}ℹ Ensuring Cloud Tasks queue exists...${NC}"
 QUEUE_NAME="article-caster-queue"
 if ! gcloud tasks queues describe "$QUEUE_NAME" --project="$PROJECT_ID" --location="$TASKS_REGION" >/dev/null 2>&1; then
   echo -e "${GREEN}✔ Creating queue $QUEUE_NAME...${NC}"
-  gcloud tasks queues create "$QUEUE_NAME" --project="$PROJECT_ID" --location="$TASKS_REGION"
+  gcloud tasks queues create "$QUEUE_NAME" --project="$PROJECT_ID" --location="$TASKS_REGION" --max-concurrent-dispatches=3 --max-dispatches-per-second=1
 else
-  echo -e "${YELLOW}⚠ Queue $QUEUE_NAME already exists.${NC}"
+  echo -e "${YELLOW}⚠ Queue $QUEUE_NAME already exists. Updating limits...${NC}"
+  gcloud tasks queues update "$QUEUE_NAME" --project="$PROJECT_ID" --location="$TASKS_REGION" --max-concurrent-dispatches=3 --max-dispatches-per-second=1
 fi
 
 BUCKET_NAME="article-caster-media-$PROJECT_ID"
