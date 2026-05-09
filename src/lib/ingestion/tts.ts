@@ -5,27 +5,7 @@ const ai = new GoogleGenAI({
   location: 'us-central1' // TTS preview model is only available in us-central1
 });
 
-function createWavHeader(dataLength: number, sampleRate: number = 24000, numChannels: number = 1, bitsPerSample: number = 16): Buffer {
-  const header = Buffer.alloc(44);
-  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
-  const blockAlign = (numChannels * bitsPerSample) / 8;
-
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + dataLength, 4);
-  header.write('WAVE', 8);
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20);
-  header.writeUInt16LE(numChannels, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(byteRate, 28);
-  header.writeUInt16LE(blockAlign, 32);
-  header.writeUInt16LE(bitsPerSample, 34);
-  header.write('data', 36);
-  header.writeUInt32LE(dataLength, 40);
-
-  return header;
-}
+import { Mp3Encoder } from 'lamejs';
 
 export interface SynthesizeOptions {
   textBlocks: string[];
@@ -41,7 +21,12 @@ const resolveVoice = (voicePreference?: string) => {
   return 'Puck'; // Default Gemini voice
 };
 
-export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buffer> => {
+export interface SynthesizeResult {
+  audioBuffer: Buffer;
+  durationSeconds: number;
+}
+
+export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<SynthesizeResult> => {
   const voiceName = resolveVoice(options.voicePreference);
   
   const chunks: string[] = [];
@@ -63,10 +48,10 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buff
   }
 
   if (chunks.length === 0) {
-    return Buffer.alloc(0);
+    return { audioBuffer: Buffer.alloc(0), durationSeconds: 0 };
   }
 
-  const CONCURRENCY_LIMIT = 3;
+  const CONCURRENCY_LIMIT = 1;
   const audioBuffers: Buffer[] = new Array(chunks.length);
 
   for (let i = 0; i < chunks.length; i += CONCURRENCY_LIMIT) {
@@ -102,8 +87,8 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buff
           const blockReason = response?.promptFeedback?.blockReason;
           
           let errorMessage = 'No audio data returned from Gemini TTS';
-          if (finishReason) errorMessage += ` (Finish reason: ${finishReason})`;
-          if (blockReason) errorMessage += ` (Block reason: ${blockReason})`;
+          if (finishReason) errorMessage += ` (${finishReason})`;
+          if (blockReason) errorMessage += ` (${blockReason})`;
           
           console.error('Gemini TTS missing audio payload. Full response:', JSON.stringify(response, null, 2));
           throw new Error(errorMessage);
@@ -123,6 +108,28 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buff
   }
 
   const combinedPcm = Buffer.concat(audioBuffers);
-  const wavHeader = createWavHeader(combinedPcm.length, 24000);
-  return Buffer.concat([wavHeader, combinedPcm]);
+  const durationSeconds = Math.round(combinedPcm.length / 48000); // 24000Hz * 1 channel * 2 bytes/sample = 48000 bytes/sec
+
+  // Convert Buffer to Int16Array for lamejs
+  const samples = new Int16Array(combinedPcm.buffer, combinedPcm.byteOffset, combinedPcm.length / 2);
+  const mp3encoder = new Mp3Encoder(1, 24000, 32); // mono, 24000Hz, 32kbps
+  
+  const mp3Data: Buffer[] = [];
+  const sampleBlockSize = 1152;
+  
+  for (let i = 0; i < samples.length; i += sampleBlockSize) {
+    const sampleChunk = samples.subarray(i, i + sampleBlockSize);
+    const encoded = mp3encoder.encodeBuffer(sampleChunk);
+    if (encoded.length > 0) {
+      mp3Data.push(Buffer.from(encoded));
+    }
+  }
+  
+  const flushed = mp3encoder.flush();
+  if (flushed.length > 0) {
+    mp3Data.push(Buffer.from(flushed));
+  }
+
+  const audioBuffer = Buffer.concat(mp3Data);
+  return { audioBuffer, durationSeconds };
 };
