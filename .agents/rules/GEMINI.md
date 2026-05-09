@@ -10,12 +10,13 @@ trigger: always_on
 
 ## Specification
 - **CRITICAL**: [.agents/specs/SPEC.md](file:///.agents/specs/SPEC.md) acts as the single source of truth for the application's major business logic, architecture, and technology stack.
-- Whenever new functionality is implemented, existing functionality is modified, or underlying services (like APIs, models, or infrastructure) are changed, **you MUST update `SPEC.md` immediately** to reflect the new state. Never leave the specification out of sync with the codebase.
+- Whenever new functionality is implemented, existing functionality is modified, or underlying services (like APIs, models, or infrastructure) are changed, **you MUST update `SPEC.md` and `README.md` immediately** to reflect the new state. Never leave the specification or documentation out of sync with the codebase.
 - If proposed application logic or technical changes diverge from what is currently specified in [.agents/specs/SPEC.md](file:///.agents/specs/SPEC.md), you must explicitly flag this discrepancy to the user and await approval before proceeding.
 
 ## Documentation
 - Keep all docs in `README.md`.
-- All major application functionality should be documented.
+- All major application functionality should be documented in `README.md`.
+- **CRITICAL**: Before finishing any feature implementation or completing a conversation, you must explicitly verify that both `README.md` and `SPEC.md` accurately reflect the current state of the codebase.
 - Docs should include a GCP topology image, always up-to-date with what's deployed.
 
 ## Deployment
