@@ -1,5 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
-
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
@@ -80,6 +79,12 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buff
           model: 'gemini-3.1-flash-tts-preview',
           contents: `Say the following text clearly and naturally for a podcast summary: ${chunk}`,
           config: {
+            safetySettings: [
+              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ],
             speechConfig: {
               languageCode: options.language || 'en-US',
               voiceConfig: {
@@ -93,7 +98,15 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Buff
 
         const audioB64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
         if (!audioB64) {
-          throw new Error('No audio data returned from Gemini TTS');
+          const finishReason = response.candidates?.[0]?.finishReason;
+          const blockReason = response?.promptFeedback?.blockReason;
+          
+          let errorMessage = 'No audio data returned from Gemini TTS';
+          if (finishReason) errorMessage += ` (Finish reason: ${finishReason})`;
+          if (blockReason) errorMessage += ` (Block reason: ${blockReason})`;
+          
+          console.error('Gemini TTS missing audio payload. Full response:', JSON.stringify(response, null, 2));
+          throw new Error(errorMessage);
         }
         audioBuffers[globalIndex] = Buffer.from(audioB64, 'base64');
       } catch (err) {

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
@@ -41,6 +40,12 @@ export async function GET(request: Request) {
       model: 'gemini-3.1-flash-tts-preview',
       contents: `Hello there! This is a preview of my voice.`,
       config: {
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+        ],
         speechConfig: {
           languageCode: 'en-US',
           voiceConfig: {

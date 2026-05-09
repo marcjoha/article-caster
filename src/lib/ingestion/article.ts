@@ -1,8 +1,16 @@
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import dns from 'node:dns';
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 
 dns.setDefaultResultOrder('ipv4first');
+
+const ai = new GoogleGenAI({
+  vertexai: true,
+  project: process.env.GOOGLE_CLOUD_PROJECT,
+  location: 'us-central1'
+});
+
 
 export const extractArticleContent = async (url: string): Promise<{ title: string; textContent: string; textBlocks: string[]; language: string }> => {
   const response = await fetch(url, { 
@@ -28,7 +36,39 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
     throw new Error('Failed to extract article content.');
   }
 
-  const cleanedContent = article.textContent
+  let cleanedHtml = article.content || '';
+  try {
+    const prompt = `You are an assistant preparing articles for text-to-speech. 
+Please take the following extracted article HTML and remove any boilerplate, metadata, 'read time' indicators, 'listen to this article' buttons, author bios, and site navigation that do not belong to the main narrative. 
+Output ONLY the clean valid HTML for the main narrative. Do not use markdown code blocks.
+
+HTML:
+${article.content}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+        ]
+      }
+    });
+
+    const responseText = response.text;
+    if (responseText) {
+      cleanedHtml = responseText.replace(/^```html\n?/i, '').replace(/\n?```$/i, '');
+    }
+  } catch (error) {
+    console.error("LLM cleanup failed, falling back to original extracted content:", error);
+  }
+
+  const contentDoc = new JSDOM(cleanedHtml);
+
+  const cleanedContent = (contentDoc.window.document.body.textContent || '')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n(?:[ \t]*\n)+/g, '\n\n')
     .trim();
@@ -37,7 +77,6 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
   const language = doc.window.document.documentElement.lang || 'en-US';
 
   // Generate SSML blocks from HTML content
-  const contentDoc = new JSDOM(article.content || '');
   const elements = contentDoc.window.document.body.children;
   const textBlocks: string[] = [];
   
