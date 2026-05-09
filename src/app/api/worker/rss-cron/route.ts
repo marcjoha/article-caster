@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllSyndications, updateSyndication, createIngestion, getFeedItems, getActiveIngestions } from '@/lib/firestore';
+import { getAllSyndications, updateSyndication, createIngestion, getFeedItems, getIngestionHistory } from '@/lib/firestore';
 import Parser from 'rss-parser';
 import { CloudTasksClient } from '@google-cloud/tasks';
 
@@ -21,9 +21,9 @@ export async function GET() {
         const existingItems = await getFeedItems(syn.feed_id);
         const existingUrls = new Set(existingItems.map(item => item.source_url));
         
-        // Fetch active ingestions to avoid re-queueing
-        const activeIngestions = await getActiveIngestions(syn.feed_id);
-        const activeUrls = new Set(activeIngestions.map(ing => ing.url));
+        // Fetch ingestion history to avoid re-queueing or re-ingesting deleted items
+        const ingestionHistory = await getIngestionHistory(syn.feed_id);
+        const historyUrls = new Set(ingestionHistory.map(ing => ing.url));
 
         // Process up to 5 newest items
         const itemsToCheck = feed.items.slice(0, 5);
@@ -32,18 +32,27 @@ export async function GET() {
           const itemUrl = item.link;
           if (!itemUrl) continue;
 
-          // If it's not already an item and not already queued
-          if (!existingUrls.has(itemUrl) && !activeUrls.has(itemUrl)) {
+          // Skip items that were published before we subscribed to the feed
+          if (syn.created_at && item.isoDate) {
+            const pubDate = new Date(item.isoDate);
+            if (pubDate < syn.created_at) {
+              continue;
+            }
+          }
+
+          // If it's not already an item and has never been ingested
+          if (!existingUrls.has(itemUrl) && !historyUrls.has(itemUrl)) {
             const ingestion = await createIngestion({
               feed_id: syn.feed_id,
               url: itemUrl,
+              origin: 'rss',
             });
 
             if (isLocal) {
               fetch(`http://localhost:3000/api/worker/ingest`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ingestionId: ingestion.id, feedId: syn.feed_id, url: itemUrl }),
+                body: JSON.stringify({ ingestionId: ingestion.id, feedId: syn.feed_id, url: itemUrl, origin: 'rss' }),
               }).catch(console.error);
             } else {
               const client = new CloudTasksClient();
@@ -59,7 +68,7 @@ export async function GET() {
                   httpRequest: {
                     httpMethod: 'POST' as const,
                     url: `${serviceUrl}/api/worker/ingest`,
-                    body: Buffer.from(JSON.stringify({ ingestionId: ingestion.id, feedId: syn.feed_id, url: itemUrl })).toString('base64'),
+                    body: Buffer.from(JSON.stringify({ ingestionId: ingestion.id, feedId: syn.feed_id, url: itemUrl, origin: 'rss' })).toString('base64'),
                     headers: {
                       'Content-Type': 'application/json',
                     },

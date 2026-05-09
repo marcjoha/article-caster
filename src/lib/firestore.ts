@@ -35,6 +35,7 @@ export interface FeedItem {
   size_bytes: number;
   duration_seconds: number;
   created_at: Date;
+  origin?: 'article' | 'rss';
 }
 
 export const createFeed = async (feed: Omit<Feed, 'id' | 'created_at'>) => {
@@ -144,6 +145,7 @@ export interface Ingestion {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   error?: string;
   created_at: Date;
+  origin?: 'article' | 'rss';
 }
 
 export const createIngestion = async (ingestion: Omit<Ingestion, 'id' | 'created_at' | 'status'>) => {
@@ -175,6 +177,17 @@ export const getActiveIngestions = async (feedId: string): Promise<Ingestion[]> 
       return { ...data, created_at: data.created_at.toDate() } as Ingestion;
     })
     .filter(ing => ing.status === 'pending' || ing.status === 'processing' || ing.status === 'failed');
+};
+
+export const getIngestionHistory = async (feedId: string): Promise<Ingestion[]> => {
+  const snapshot = await db.collection('ingestions')
+    .where('feed_id', '==', feedId)
+    .get();
+    
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return { ...data, created_at: data.created_at.toDate() } as Ingestion;
+  });
 };
 
 export const clearFailedIngestions = async (feedId: string) => {

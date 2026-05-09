@@ -6,7 +6,7 @@ import { createFeedItem, updateIngestion, db, Feed } from '@/lib/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
-  const { ingestionId, feedId, url } = await request.json();
+  const { ingestionId, feedId, url, origin } = await request.json();
 
   if (!ingestionId || !feedId || !url) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -23,6 +23,10 @@ export async function POST(request: Request) {
 
     const { title, textContent, language, textBlocks } = await extractArticleContent(url);
     
+    const domain = new URL(url).hostname.replace(/^www\./, '');
+    const originLabel = origin === 'rss' ? 'blog post' : 'article';
+    textBlocks.unshift(`This is a ${originLabel} titled ${title} from ${domain}.\n\n`);
+
     if (feed?.audio_prefix_message) {
       textBlocks.unshift(`${feed.audio_prefix_message}\n\n`);
     }
@@ -41,6 +45,7 @@ export async function POST(request: Request) {
       type: 'audio',
       size_bytes: audioBuffer.length,
       duration_seconds: Math.round(audioBuffer.length / 4000), // rough estimate for 32kbps MP3
+      origin: origin || 'article', // Default to article if missing
     });
 
     // Mark as completed

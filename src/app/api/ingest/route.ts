@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     const ingestion = await createIngestion({
       feed_id: feedId,
       url,
+      origin: 'article',
     });
 
     const isLocal = !process.env.K_SERVICE && process.env.NODE_ENV === 'development';
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
       fetch(`http://localhost:3000/api/worker/ingest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingestionId: ingestion.id, feedId, url }),
+        body: JSON.stringify({ ingestionId: ingestion.id, feedId, url, origin: 'article' }),
       }).catch(console.error);
     } else {
       // Production: Enqueue to Cloud Tasks
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
         httpRequest: {
           httpMethod: 'POST' as const,
           url: `${serviceUrl}/api/worker/ingest`,
-          body: Buffer.from(JSON.stringify({ ingestionId: ingestion.id, feedId, url })).toString('base64'),
+          body: Buffer.from(JSON.stringify({ ingestionId: ingestion.id, feedId, url, origin: 'article' })).toString('base64'),
           headers: {
             'Content-Type': 'application/json',
           },

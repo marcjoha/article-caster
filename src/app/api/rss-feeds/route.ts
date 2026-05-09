@@ -44,20 +44,21 @@ export async function POST(request: Request) {
             const ingestion = await createIngestion({
               feed_id: feedId,
               url: itemUrl,
+              origin: 'rss',
             });
 
             if (isLocal) {
               fetch(`http://localhost:3000/api/worker/ingest`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ingestionId: ingestion.id, feedId, url: itemUrl }),
+                body: JSON.stringify({ ingestionId: ingestion.id, feedId, url: itemUrl, origin: 'rss' }),
               }).catch(console.error);
             } else if (serviceUrl) {
               const task = {
                 httpRequest: {
                   httpMethod: 'POST' as const,
                   url: `${serviceUrl}/api/worker/ingest`,
-                  body: Buffer.from(JSON.stringify({ ingestionId: ingestion.id, feedId, url: itemUrl })).toString('base64'),
+                  body: Buffer.from(JSON.stringify({ ingestionId: ingestion.id, feedId, url: itemUrl, origin: 'rss' })).toString('base64'),
                   headers: {
                     'Content-Type': 'application/json',
                   },
