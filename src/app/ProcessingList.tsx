@@ -60,6 +60,29 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
     }
   };
 
+  const handleTryAgain = async (ing: Ingestion) => {
+    // Optimistically remove the failed one from UI
+    setIngestions(prev => prev.filter(i => i.id !== ing.id));
+    
+    try {
+      // 1. Delete the old failed ingestion
+      if (ing.id) {
+        await fetch(`/api/ingestions?ingestionId=${ing.id}`, { method: 'DELETE' });
+      }
+      
+      // 2. Add it back to the queue
+      await fetch('/api/ingest', {
+        method: 'POST',
+        body: JSON.stringify({ feedId, url: ing.url }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      router.refresh();
+    } catch (e) {
+      console.error('Failed to retry ingestion', e);
+    }
+  };
+
   return (
     <div style={{ marginBottom: '3rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -92,8 +115,17 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
                 </td>
                 <td className="article-audio-cell" colSpan={2}>
                   {ing.status === 'failed' ? (
-                    <div style={{ color: '#ef4444', fontSize: '0.875rem', fontWeight: 600, textAlign: 'right' }}>
-                      Failed: {ing.error || 'Unknown error'}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem' }}>
+                      <div style={{ color: '#ef4444', fontSize: '0.875rem', fontWeight: 600, textAlign: 'right' }}>
+                        {ing.error || 'Unknown error'}
+                      </div>
+                      <button 
+                        onClick={() => handleTryAgain(ing)}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', height: 'auto', minHeight: 'unset', whiteSpace: 'nowrap' }}
+                      >
+                        Retry
+                      </button>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', color: '#f59e0b', fontSize: '0.875rem', fontWeight: 600 }}>
