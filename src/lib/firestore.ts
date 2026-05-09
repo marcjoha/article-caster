@@ -135,6 +135,14 @@ export const getFeedItems = async (feedId: string): Promise<FeedItem[]> => {
 };
 
 export const deleteFeedItem = async (itemId: string) => {
+  const itemDoc = await db.collection('items').doc(itemId).get();
+  if (itemDoc.exists) {
+    const itemData = itemDoc.data() as FeedItem;
+    if (itemData.media_url) {
+      await deleteFile(itemData.media_url);
+    }
+  }
+
   await db.collection('items').doc(itemId).delete();
 };
 
@@ -203,6 +211,10 @@ export const clearFailedIngestions = async (feedId: string) => {
   });
 
   await batch.commit();
+};
+
+export const deleteIngestion = async (id: string) => {
+  await db.collection('ingestions').doc(id).delete();
 };
 
 export interface Syndication {
