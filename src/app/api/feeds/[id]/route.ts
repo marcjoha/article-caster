@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { updateFeed, deleteFeed } from '@/lib/firestore';
-import { uploadFile } from '@/lib/storage';
+import { updateFeed, deleteFeed, db } from '@/lib/firestore';
+import { uploadFile, deleteFile } from '@/lib/storage';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,6 +17,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   let cover_image_url = formData.get('cover_image_url') as string | undefined;
   
   if (coverImageFile) {
+    // Delete the old cover image if it exists
+    const feedDoc = await db.collection('feeds').doc(id).get();
+    if (feedDoc.exists) {
+      const feedData = feedDoc.data();
+      if (feedData && feedData.cover_image_url) {
+        await deleteFile(feedData.cover_image_url);
+      }
+    }
+
     const buffer = Buffer.from(await coverImageFile.arrayBuffer());
     const safeName = coverImageFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     cover_image_url = await uploadFile(`covers/${Date.now()}-${safeName}`, buffer, coverImageFile.type);
