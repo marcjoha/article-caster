@@ -10,12 +10,13 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 
 1. **Authentication**: The application has an admin web interface restricted to a single admin user via a Simple Passcode mechanism. The passcode is securely stored as `ADMIN_PASSCODE` in the environment variables and validated using Next.js middleware with an `admin_session` cookie.
 2. **Feed Management**: 
-   - The admin can create new podcast feeds and provide relevant metadata (e.g., title, description, cover image).
+   - The admin can create new podcast feeds and provide relevant metadata (e.g., title, description, author name, cover image, TTS voice, audio prefix message).
    - The admin can view, edit, and delete existing feeds.
    - The feed URL generated is public to allow podcast clients to subscribe, but uses an "unguessable" random string (e.g., UUID) to protect privacy.
    - Whenever modifications are made to the podcast feed generation logic, the resulting feeds must be strictly validated against the latest Apple Podcasts or RSS feed standards.
 3. **Content Ingestion**:
-   - **Articles**: The admin can submit an article URL. The system offloads the processing to a Google Cloud Tasks background worker, which extracts the main text content, removes ads and clutter, and uses a Text-to-Speech (TTS) service to generate an audio file.
+   - **Articles**: The admin can submit an article URL. The system offloads the processing to a Google Cloud Tasks background worker, which extracts the main text content, removes ads and boilerplate using a Gemini LLM, and uses a Text-to-Speech (TTS) service to generate an audio file.
+   - **RSS Syndication**: The admin can add RSS syndications to automatically ingest blog posts. A scheduled cron job (via Cloud Scheduler) periodically syncs new items.
 4. **Content Management**:
    - Ingested items are added to a specific feed.
    - The admin can remove previously added items.
@@ -23,8 +24,10 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 
 ## Data Model
 
-*   **Feeds**: `id`, `title`, `description`, `category` (optional), `cover_image_url`, `tts_voice`, `unguessable_slug`, `created_at`
-*   **Items**: `id`, `feed_id`, `title`, `description`, `source_url`, `media_url` (Cloud Storage path), `type` (audio), `size_bytes`, `duration_seconds`, `created_at`
+*   **Feeds**: `id`, `title`, `description`, `author`, `category` (optional), `cover_image_url`, `tts_voice`, `audio_prefix_message`, `unguessable_slug`, `created_at`
+*   **Items**: `id`, `feed_id`, `title`, `description`, `source_url`, `media_url` (Cloud Storage path), `type` (audio), `size_bytes`, `duration_seconds`, `origin` (article | rss), `created_at`
+*   **Ingestions**: `id`, `feed_id`, `url`, `status`, `error`, `origin` (article | rss), `created_at`
+*   **Syndications**: `id`, `feed_id`, `url`, `title`, `last_checked_at`, `created_at`
 
 ## Technology Stack
 

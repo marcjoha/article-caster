@@ -12,8 +12,9 @@ A personal podcast feed generator that converts web articles into spoken-word au
 
 ## Features
 
-- **Article-to-Audio Ingestion** — Paste any article URL to extract, clean, and convert it into an MP3 podcast episode (processed asynchronously via Cloud Tasks).
-- **Podcast Feed Management** — Create and manage multiple podcast feeds, each with its own title, description, category, and cover image.
+- **Article-to-Audio Ingestion** — Paste any article URL to extract, clean (with LLM-based boilerplate removal), and convert it into an MP3 podcast episode (processed asynchronously via Cloud Tasks).
+- **RSS Syndication** — Subscribe your custom feeds to external RSS sources to automatically ingest new blog posts on a daily schedule.
+- **Podcast Feed Management** — Create and manage multiple podcast feeds, each with its own title, description, author, cover image, TTS voice, and custom audio prefix message.
 - **Private RSS Feeds** — Each feed gets a unique, unguessable URL that can be subscribed to in any podcast client.
 - **Admin Authentication** — Simple passcode-based login to protect the admin dashboard.
 - **Content Management** — Play/listen to generated audio directly in the admin UI, and remove items from feeds.
