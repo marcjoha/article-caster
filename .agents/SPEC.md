@@ -37,10 +37,11 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 
 *   **Backend & Frontend**: Next.js 16 (App Router) used as a unified full-stack Node.js framework to serve both the React frontend and backend API routes. Intended for deployment on Google Cloud Run.
 *   **Storage**: 
-    *   **Google Cloud Storage (GCS)**: Stores the generated audio and downloaded video files. The bucket must be configured with Uniform Bucket-Level Access to be publicly readable, allowing podcast clients direct access to media.
+    *   **Google Cloud Storage (GCS)**: Stores the generated audio files. The bucket must be configured with Uniform Bucket-Level Access to be publicly readable, allowing podcast clients direct access to media.
     *   **Google Cloud Firestore**: Stores metadata about feeds and feed items.
 *   **Core Integrations**:
     *   **Google Cloud Tasks**: Used to queue and process long-running article ingestion tasks asynchronously to prevent web request timeouts.
+    *   **Google Cloud Scheduler**: Triggers daily RSS syndication cron jobs to automatically ingest new blog posts.
     *   **Article Extraction**: `@mozilla/readability` paired with `jsdom` to extract clean text, followed by a Gemini LLM to remove boilerplate and ads.
     *   **Text-to-Speech (TTS)**: Gemini 3.1 Flash TTS API for highly expressive, human-like podcast audio.
     *   **Podcast Feed**: `podcast` npm package (supports RSS 2.0 with iTunes extensions for audio enclosures).

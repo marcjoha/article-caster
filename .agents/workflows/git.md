@@ -8,7 +8,7 @@ Ensures the codebase is healthy and sanitized, then makes atomic, descriptive co
 
 ## 1. Pre-Push Quality Gate
 
-Run lint and type-check to catch issues before committing. If either fails, stop and fix the problem before continuing.
+Run lint, type-check, and build to catch issues before committing. If any step fails, stop and fix the problem before continuing.
 
 // turbo
 ```bash
@@ -18,6 +18,11 @@ npm run lint
 // turbo
 ```bash
 npx tsc --noEmit
+```
+
+// turbo
+```bash
+npm run build
 ```
 
 ## 2. Registry Sanitization Check
@@ -39,7 +44,18 @@ rm package-lock.json && npm install --package-lock-only --registry=https://regis
 
 If the output is `CLEAN`, skip regeneration and move on.
 
-## 3. Review Changes
+## 3. Secrets Safety Check
+
+Ensure `.env` is not accidentally staged for commit. Per `RULES.md`: *"Ensure `.env` is... never committed."*
+
+// turbo
+```bash
+git diff --cached --name-only | grep -q "^\.env$" && echo "DANGER: .env is staged!" || echo "SAFE"
+```
+
+If the output is `DANGER`, immediately unstage it with `git reset HEAD .env` before proceeding.
+
+## 4. Review Changes
 
 Get a summary of what has changed. Use `--stat` to keep the output concise.
 
@@ -50,12 +66,18 @@ git diff --stat
 
 If `git status` shows **nothing to commit and the working tree is clean**, report this to the user and stop — there is nothing to push.
 
-## 4. Stage and Commit Atomically
+## 5. Documentation Freshness Check
 
-Per `.agents/rules/GEMINI.md`:
+Per `.agents/RULES.md`: *"Before finishing any feature implementation or completing a conversation, you must explicitly verify that both `README.md` and `SPEC.md` accurately reflect the current state of the codebase."*
+
+Review the changed files from step 4. If any source code files were modified but neither `README.md` nor `.agents/SPEC.md` appear in the diff, flag this to the user and ask whether the documentation needs updating before committing.
+
+## 6. Stage and Commit Atomically
+
+Per `.agents/RULES.md`:
 > *"Keep git commits atomic and descriptive. Do not bundle unrelated features or bug fixes into a single commit."*
 
-Analyze the changes from step 3 and group them into logical units. For each group:
+Analyze the changes from step 4 and group them into logical units. For each group:
 
 1. Stage the relevant files with `git add <file> [<file> ...]`.
 2. Write a clear, descriptive commit message using [Conventional Commits](https://www.conventionalcommits.org/) format (e.g., `fix:`, `feat:`, `docs:`, `chore:`, `refactor:`).
@@ -63,14 +85,14 @@ Analyze the changes from step 3 and group them into logical units. For each grou
 
 Example:
 ```bash
-git add README.md .agents/specs/SPEC.md
+git add README.md .agents/SPEC.md
 git commit -m "docs: document Cloud Tasks background worker architecture"
 
 git add src/app/ProcessingList.tsx
 git commit -m "fix(ui): replace any[] with typed Ingestion interface and use const for interval"
 ```
 
-## 5. Push
+## 7. Push
 
 Push all commits to the remote.
 
@@ -80,7 +102,7 @@ git push
 
 If the push is rejected due to remote changes, run `git pull --rebase` first and then retry the push.
 
-## 6. Summary
+## 8. Summary
 
 After a successful push, report to the user:
 

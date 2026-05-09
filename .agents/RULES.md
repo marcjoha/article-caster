@@ -17,7 +17,7 @@ trigger: always_on
 - Keep all docs in `README.md`.
 - All major application functionality should be documented in `README.md`.
 - **CRITICAL**: Before finishing any feature implementation or completing a conversation, you must explicitly verify that both `README.md` and `SPEC.md` accurately reflect the current state of the codebase.
-- Docs should include a GCP topology image, always up-to-date with what's deployed.
+- Docs should include a GCP topology image, always up-to-date with what's deployed. Generate this picture with Gemini and make sure to use up-to-date product icons from http://cloud.google.com/icons.
 
 ## Deployment
 - Environment variables and secrets must be locally stored in `.env`. Ensure `.env` is immediately added to `.gitignore` and never committed or uploaded to any cloud service. Maintain `.env.example` whenever variables are added or removed.
@@ -30,8 +30,8 @@ trigger: always_on
 - If you create temporary test files, don't keep these laying around unless told so.
 - Never leave dead code behind.
 
-## Error Handling & Telemetry
-- All new data-fetching logic or third-party integrations must include robust error handling and propagate their state to the application's core telemetry and health monitoring systems.
+## Error Handling & Logging
+- All data-fetching logic and third-party integrations must include robust error handling (e.g., `try/catch`) and log errors with sufficient context using `console.error`.
 
 ## Version Control
 - Keep git commits atomic and descriptive. Do not bundle unrelated features or bug fixes into a single commit.
