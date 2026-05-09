@@ -9,9 +9,9 @@ trigger: always_on
 - Application source code should be encapsulated in a dedicated sub-directory (like `src/` or `app/`).
 
 ## Specification
-- **CRITICAL**: [.agents/specs/SPEC.md](file:///.agents/specs/SPEC.md) acts as the single source of truth for the application's major business logic, architecture, and technology stack.
+- **CRITICAL**: [.agents/SPEC.md](file:///.agents/SPEC.md) acts as the single source of truth for the application's major business logic, architecture, and technology stack.
 - Whenever new functionality is implemented, existing functionality is modified, or underlying services (like APIs, models, or infrastructure) are changed, **you MUST update `SPEC.md` and `README.md` immediately** to reflect the new state. Never leave the specification or documentation out of sync with the codebase.
-- If proposed application logic or technical changes diverge from what is currently specified in [.agents/specs/SPEC.md](file:///.agents/specs/SPEC.md), you must explicitly flag this discrepancy to the user and await approval before proceeding.
+- If proposed application logic or technical changes diverge from what is currently specified in [.agents/SPEC.md](file:///.agents/SPEC.md), you must explicitly flag this discrepancy to the user and await approval before proceeding.
 
 ## Documentation
 - Keep all docs in `README.md`.

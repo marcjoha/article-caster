@@ -5,7 +5,16 @@ const ai = new GoogleGenAI({
   location: 'us-central1' // TTS preview model is only available in us-central1
 });
 
-import { Mp3Encoder } from 'lamejs';
+// Fix for lamejs ReferenceError: MPEGMode is not defined
+if (typeof global !== 'undefined') {
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
+  (global as any).MPEGMode = require('lamejs/src/js/MPEGMode.js');
+  (global as any).Lame = require('lamejs/src/js/Lame.js');
+  (global as any).BitStream = require('lamejs/src/js/BitStream.js');
+}
+const lamejs = require('lamejs');
+/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
+const { Mp3Encoder } = lamejs;
 
 export interface SynthesizeOptions {
   textBlocks: string[];
@@ -115,7 +124,7 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
   const mp3encoder = new Mp3Encoder(1, 24000, 32); // mono, 24000Hz, 32kbps
   
   const mp3Data: Buffer[] = [];
-  const sampleBlockSize = 1152;
+  const sampleBlockSize = 576; // MPEG-2 LSF uses 576 samples per frame
   
   for (let i = 0; i < samples.length; i += sampleBlockSize) {
     const sampleChunk = samples.subarray(i, i + sampleBlockSize);

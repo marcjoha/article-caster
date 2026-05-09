@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Specification
 
 ## Application Overview
@@ -37,7 +41,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
     *   **Google Cloud Firestore**: Stores metadata about feeds and feed items.
 *   **Core Integrations**:
     *   **Google Cloud Tasks**: Used to queue and process long-running article ingestion tasks asynchronously to prevent web request timeouts.
-    *   **Article Extraction**: `@mozilla/readability` paired with `jsdom` to extract clean text.
+    *   **Article Extraction**: `@mozilla/readability` paired with `jsdom` to extract clean text, followed by a Gemini LLM to remove boilerplate and ads.
     *   **Text-to-Speech (TTS)**: Gemini 3.1 Flash TTS API for highly expressive, human-like podcast audio.
     *   **Podcast Feed**: `podcast` npm package (supports RSS 2.0 with iTunes extensions for audio enclosures).
 
