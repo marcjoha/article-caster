@@ -88,7 +88,6 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h3 style={{ margin: 0 }}>Processing</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{ingestions.length} in progress</span>
           {hasFailed && (
             <button 
               onClick={handleClearFailed}
@@ -99,6 +98,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
               {isClearing ? 'Clearing...' : 'Clear failed'}
             </button>
           )}
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{ingestions.length} in progress</span>
         </div>
       </div>
       
