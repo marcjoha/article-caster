@@ -16,7 +16,7 @@ const lamejs = require('lamejs');
 /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
 const { Mp3Encoder } = lamejs;
 
-export interface SynthesizeOptions {
+interface SynthesizeOptions {
   textBlocks: string[];
   language: string;
   voicePreference?: string;
@@ -30,7 +30,7 @@ const resolveVoice = (voicePreference?: string) => {
   return 'Puck'; // Default Gemini voice
 };
 
-export interface SynthesizeResult {
+interface SynthesizeResult {
   audioBuffer: Buffer;
   durationSeconds: number;
 }
