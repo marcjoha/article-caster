@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       textBlocks.unshift(`${feed.audio_prefix_message}\n\n`);
     }
 
-    const audioBuffer = await synthesizeSpeech({ textBlocks, language, voicePreference });
+    const { audioBuffer, durationSeconds } = await synthesizeSpeech({ textBlocks, language, voicePreference });
     
     const fileId = uuidv4();
     const mediaUrl = await uploadFile(`article/${fileId}.mp3`, audioBuffer, 'audio/mpeg');
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       media_url: mediaUrl,
       type: 'audio',
       size_bytes: audioBuffer.length,
-      duration_seconds: Math.round(audioBuffer.length / 4000), // rough estimate for 32kbps MP3
+      duration_seconds: durationSeconds,
       origin: origin || 'article', // Default to article if missing
     });
 

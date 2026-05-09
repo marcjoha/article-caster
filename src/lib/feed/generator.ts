@@ -27,6 +27,7 @@ export const generatePodcastRss = (feed: Feed, items: FeedItem[], hostUrl: strin
 
   items.forEach(item => {
     const itemDescription = item.description.substring(0, 4000);
+    const isWav = item.media_url.toLowerCase().endsWith('.wav');
     podcast.addItem({
       title: item.title,
       description: itemDescription,
@@ -36,7 +37,7 @@ export const generatePodcastRss = (feed: Feed, items: FeedItem[], hostUrl: strin
       enclosure: {
         url: item.media_url,
         size: item.size_bytes,
-        type: 'audio/mpeg',
+        type: isWav ? 'audio/wav' : 'audio/mpeg',
       },
       itunesDuration: item.duration_seconds,
       itunesSummary: itemDescription,
