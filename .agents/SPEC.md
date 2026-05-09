@@ -45,3 +45,10 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
     *   **Text-to-Speech (TTS)**: Gemini 3.1 Flash TTS API for highly expressive, human-like podcast audio.
     *   **Podcast Feed**: `podcast` npm package (supports RSS 2.0 with iTunes extensions for audio enclosures).
 
+## User Interface
+
+*   **Button Colors**:
+    *   **Red**: Destructive actions (e.g., delete, remove).
+    *   **Blue**: Inserts or updates (e.g., save, edit).
+    *   **Green**: Non-destructive actions.
+    *   **Gray**: For cancelling operations.

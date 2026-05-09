@@ -13,7 +13,6 @@ export const uploadFile = async (destinationPath: string, buffer: Buffer, conten
     metadata: {
       contentType,
     },
-    resumable: false,
   });
   
   try {
