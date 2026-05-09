@@ -126,7 +126,23 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         <tr key={item.id}>
 
                           <td>
-                            <div className="article-title">
+                            <div className="article-title" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <div style={{
+                                color: '#94a3b8',
+                                flexShrink: 0,
+                                display: 'flex',
+                                alignItems: 'center'
+                              }} title={item.origin === 'rss' ? 'RSS Ingestion' : 'Article Ingestion'}>
+                                {item.origin === 'rss' ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                                  </svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                  </svg>
+                                )}
+                              </div>
                               {item.source_url ? (
                                 <a href={item.source_url} target="_blank" rel="noreferrer">
                                   {item.title}
@@ -136,7 +152,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                               )}
                             </div>
                             <div className="article-meta">
-                              Added at {formatDateTime(item.created_at)}
+                              Added {formatDateTime(item.created_at)}
                               {item.source_url && (
                                 <>
                                   <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>•</span>
@@ -150,8 +166,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                                 </>
                               )}
                             </div>
-
-
                           </td>
                           <td className="article-audio-cell">
                             <audio controls src={item.media_url} />
