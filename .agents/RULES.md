@@ -22,6 +22,7 @@ trigger: always_on
 ## Deployment
 - Environment variables and secrets must be locally stored in `.env`. Ensure `.env` is immediately added to `.gitignore` and never committed or uploaded to any cloud service. Maintain `.env.example` whenever variables are added or removed.
 - Never modify cloud services directly. Everything related to the deployment of this application should be defined in `cloud-deploy.sh` and `cloud-teardown.sh` respectively.
+- **CRITICAL**: Whenever you introduce new Firestore queries that require composite indexes, add new environment variables, or rely on new GCP services, you MUST immediately update `cloud-deploy.sh` to provision them.
 - `cloud-deploy.sh` should be idempotent, meaning I can run it over and over without causing problems.
 - `cloud-teardown.sh` must act as a true nuclear option. It must exact the exact inverse of the deploy script and completely obliterate ALL provisioned infrastructure (including databases, buckets, and queues). Do not hesitate or skip deleting data out of caution; absolute infrastructure parity is required.
 
@@ -35,3 +36,10 @@ trigger: always_on
 
 ## Version Control
 - Keep git commits atomic and descriptive. Do not bundle unrelated features or bug fixes into a single commit.
+
+## Definition of Done
+Before declaring any feature complete, you MUST verify:
+1. The feature code works and builds successfully (`npm run build`).
+2. `README.md` and `.agents/SPEC.md` have been updated to document the new behavior.
+3. `cloud-deploy.sh` has been updated to provision any new required infrastructure (e.g., Firestore indexes, Pub/Sub, Scheduler jobs).
+4. `.env.example` has been updated if new environment variables were added.

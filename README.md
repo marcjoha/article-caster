@@ -9,6 +9,7 @@ A personal podcast feed generator that converts web articles into spoken-word au
 - **RSS Syndication** — Subscribe your custom feeds to external RSS sources to automatically ingest new blog posts on a daily schedule.
 - **Podcast Feed Management** — Create and manage multiple podcast feeds, each with its own title, description, author, cover image, TTS voice, and custom audio prefix message.
 - **Private RSS Feeds** — Each feed gets a unique, unguessable URL that can be subscribed to in any podcast client.
+- **Podcast Statistics** — Track episode downloads and view a breakdown of podcast clients natively in the admin dashboard.
 - **Admin Authentication** — Simple passcode-based login to protect the admin dashboard.
 - **Content Management** — Play/listen to generated audio directly in the admin UI, and remove items from feeds.
 

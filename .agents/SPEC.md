@@ -25,6 +25,10 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
    - Ingested items are added to a specific feed.
    - The admin can remove previously added items.
    - The admin can play/listen to the generated audio content directly through the admin site.
+5. **Statistics & Analytics**:
+   - Audio enclosure URLs in the RSS feeds are proxied through a dynamic Next.js route (`/media/[itemId]`).
+   - Episode downloads and user agents are logged into a `listens` collection in Firestore.
+   - The admin can view total listens, top episodes, and client breakdowns natively in the dashboard.
 
 ## Data Model
 
@@ -32,6 +36,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 *   **Items**: `id`, `feed_id`, `title`, `description`, `source_url`, `media_url` (Cloud Storage path), `type` (audio), `size_bytes`, `duration_seconds`, `origin` (article | rss), `created_at`
 *   **Ingestions**: `id`, `feed_id`, `url`, `status`, `error`, `origin` (article | rss), `created_at`
 *   **Syndications**: `id`, `feed_id`, `url`, `title`, `last_checked_at`, `created_at`
+*   **Listens**: `id`, `item_id`, `feed_id`, `user_agent`, `ip_hash`, `created_at`
 
 ## Technology Stack
 

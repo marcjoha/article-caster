@@ -44,6 +44,7 @@ echo -e "${BLUE}ℹ Ensuring Firestore indexes are created...${NC}"
 gcloud firestore indexes composite create --collection-group=items --field-config field-path=feed_id,order=ascending --field-config field-path=created_at,order=descending --project="$PROJECT_ID" 2>/dev/null || echo -e "${YELLOW}⚠ Index already exists or is currently building.${NC}"
 gcloud firestore indexes composite create --collection-group=ingestions --field-config field-path=feed_id,order=ascending --field-config field-path=created_at,order=descending --project="$PROJECT_ID" 2>/dev/null || echo -e "${YELLOW}⚠ Index already exists or is currently building.${NC}"
 gcloud firestore indexes composite create --collection-group=syndications --field-config field-path=feed_id,order=ascending --field-config field-path=created_at,order=descending --project="$PROJECT_ID" 2>/dev/null || echo -e "${YELLOW}⚠ Index already exists or is currently building.${NC}"
+gcloud firestore indexes composite create --collection-group=listens --field-config field-path=feed_id,order=ascending --field-config field-path=created_at,order=descending --project="$PROJECT_ID" 2>/dev/null || echo -e "${YELLOW}⚠ Index already exists or is currently building.${NC}"
 
 echo -e "${BLUE}ℹ Ensuring Cloud Tasks queue exists...${NC}"
 QUEUE_NAME="article-caster-queue"
