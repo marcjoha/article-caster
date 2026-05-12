@@ -6,6 +6,7 @@ import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay } from './ClientButt
 import IngestionTabs from './IngestionTabs';
 import FeedSelector from './FeedSelector';
 import ProcessingList from './ProcessingList';
+import FeedStats from './FeedStats';
 
 import { formatDateTime } from '@/lib/utils';
 
@@ -40,7 +41,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <div style={{ width: '100%' }}>
         {selectedFeed ? (
           <div className="card" style={{padding: '2.5rem', maxWidth: '100%'}}>
-              <div className="feed-header" style={{display: 'flex', gap: '2rem', marginBottom: '2.5rem'}}>
+              <div className="feed-header" style={{display: 'flex', gap: '2rem', marginBottom: '1.5rem'}}>
                 <div style={{flexShrink: 0}}>
                   {selectedFeed.cover_image_url ? (
                     <Image src={selectedFeed.cover_image_url} alt="Cover" width={120} height={120} unoptimized={true} priority={true} style={{borderRadius: '12px', objectFit: 'cover'}} />
@@ -53,28 +54,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 <div style={{flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
                   <div className="feed-header-info" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                     <div>
-                      <h2 style={{margin: '0 0 0.5rem 0', fontSize: '2rem', display: 'flex', alignItems: 'center'}}>
+                      <h2 style={{margin: '0 0 0.5rem 0', fontSize: '2rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
                         {selectedFeed.title}
-                        {selectedFeed.category && (
-                          <span style={{
-                            marginLeft: '1rem',
-                            fontSize: '0.875rem',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            color: '#60a5fa',
-                            padding: '0.25rem 0.5rem',
-                            borderRadius: '9999px',
-                            verticalAlign: 'middle',
-                            fontWeight: 'normal',
-                            border: '1px solid rgba(59, 130, 246, 0.2)'
-                          }}>
-                            {selectedFeed.category}
-                          </span>
-                        )}
+                        <FeedUrlDisplay baseUrl={baseUrl} path={`/feed/${selectedFeed.unguessable_slug}.xml`} />
                       </h2>
                       <p style={{margin: 0, color: '#cbd5e1', fontSize: '1rem', lineHeight: 1.5, maxWidth: '600px'}}>
                         {selectedFeed.description || 'No description provided.'}
                       </p>
-                      <FeedUrlDisplay baseUrl={baseUrl} path={`/feed/${selectedFeed.unguessable_slug}.xml`} />
                     </div>
                     <div className="feed-actions" style={{display: 'flex', gap: '1rem'}}>
                       <FeedForm 
@@ -96,7 +82,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 </div>
               </div>
 
-              <div style={{marginTop: '2rem', marginBottom: '3rem'}}>
+              <div style={{marginTop: '0', marginBottom: '3rem'}}>
+                <FeedStats feedId={selectedFeed.id!} />
                 <IngestionTabs feedId={selectedFeed.id!} syndications={syndications} />
               </div>
 

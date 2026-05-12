@@ -28,62 +28,28 @@ export function FeedUrlDisplay({ path, baseUrl }: { path: string; baseUrl?: stri
   };
 
   return (
-    <div style={{ marginTop: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(15, 23, 42, 0.4)', padding: '0.5rem', borderRadius: '8px', border: '1px solid #334155', maxWidth: '100%', overflow: 'hidden' }}>
-      <div style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '1.2rem', height: '1.2rem' }}>
+    <button 
+      onClick={handleCopy} 
+      title="Copy RSS Feed URL"
+      className={`btn ${copied ? 'btn-success' : 'btn-rss'}`}
+      style={{
+        marginLeft: '1rem',
+        padding: '0.35rem', 
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {copied ? (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>
           <path fillRule="evenodd" d="M3.75 4.5a.75.75 0 01.75-.75h.75c8.284 0 15 6.716 15 15v.75a.75.75 0 01-.75.75h-.75a.75.75 0 01-.75-.75v-.75C18 11.708 12.292 6 5.25 6H4.5a.75.75 0 01-.75-.75V4.5zm0 6.75a.75.75 0 01.75-.75h.75a8.25 8.25 0 018.25 8.25v.75a.75.75 0 01-.75.75H12a.75.75 0 01-.75-.75v-.75a6.75 6.75 0 00-6.75-6.75H4.5a.75.75 0 01-.75-.75v-.75zm0 7.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" clipRule="evenodd" />
         </svg>
-      </div>
-      <input 
-        type="text" 
-        readOnly 
-        value={fullUrl} 
-        style={{ flex: 1, background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.9rem', outline: 'none', textOverflow: 'ellipsis', minWidth: 0 }} 
-        onFocus={(e) => e.target.select()}
-      />
-      <button 
-        onClick={handleCopy} 
-        className={copied ? "" : "btn"}
-        style={copied ? { 
-          background: '#10b981', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '6px', 
-          padding: '0.4rem 0.8rem', 
-          fontSize: '0.875rem', 
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.4rem',
-          transition: 'all 0.2s',
-          flexShrink: 0,
-          fontWeight: 600
-        } : {
-          padding: '0.4rem 0.8rem', 
-          fontSize: '0.875rem', 
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.4rem',
-          flexShrink: 0,
-        }}
-      >
-        {copied ? (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Copied!
-          </>
-        ) : (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-            </svg>
-            Copy URL
-          </>
-        )}
-      </button>
-    </div>
+      )}
+    </button>
   );
 }
 
