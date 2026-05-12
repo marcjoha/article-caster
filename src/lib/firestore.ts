@@ -91,6 +91,12 @@ export const deleteFeed = async (feedId: string) => {
     batch.delete(doc.ref);
   });
 
+  // Also delete all listens associated with this feed
+  const listensSnapshot = await db.collection('listens').where('feed_id', '==', feedId).get();
+  listensSnapshot.docs.forEach(doc => {
+    batch.delete(doc.ref);
+  });
+
   await Promise.all([
     batch.commit(),
     ...deleteFilePromises
@@ -132,6 +138,13 @@ export const getFeedItems = async (feedId: string): Promise<FeedItem[]> => {
     const data = doc.data();
     return { ...data, created_at: data.created_at.toDate() } as FeedItem;
   });
+};
+
+export const getFeedItemById = async (itemId: string): Promise<FeedItem | null> => {
+  const doc = await db.collection('items').doc(itemId).get();
+  if (!doc.exists) return null;
+  const data = doc.data()!;
+  return { ...data, created_at: data.created_at.toDate() } as FeedItem;
 };
 
 export const deleteFeedItem = async (itemId: string) => {
@@ -270,4 +283,35 @@ export const updateSyndication = async (id: string, updates: Partial<Pick<Syndic
 
 export const deleteSyndication = async (id: string) => {
   await db.collection('syndications').doc(id).delete();
+};
+
+export interface Listen {
+  id?: string;
+  item_id: string;
+  feed_id: string;
+  user_agent: string;
+  ip_hash: string;
+  created_at: Date;
+}
+
+export const createListen = async (listen: Omit<Listen, 'id' | 'created_at'>) => {
+  const docRef = db.collection('listens').doc();
+  const data: Listen = {
+    ...listen,
+    id: docRef.id,
+    created_at: new Date(),
+  };
+  await docRef.set(data);
+  return data;
+};
+
+export const getListensByFeed = async (feedId: string): Promise<Listen[]> => {
+  const snapshot = await db.collection('listens')
+    .where('feed_id', '==', feedId)
+    .orderBy('created_at', 'desc')
+    .get();
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return { ...data, created_at: data.created_at.toDate() } as Listen;
+  });
 };
