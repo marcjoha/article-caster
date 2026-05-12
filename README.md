@@ -1,7 +1,6 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="public/logo.svg">
-    <source media="(prefers-color-scheme: light)" srcset="public/logo-light.svg">
     <img alt="article-caster logo" src="public/logo.svg" width="400">
   </picture>
 </p>
