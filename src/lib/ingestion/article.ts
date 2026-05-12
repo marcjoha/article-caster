@@ -13,7 +13,7 @@ const ai = new GoogleGenAI({
 
 
 export const extractArticleContent = async (url: string): Promise<{ title: string; textContent: string; textBlocks: string[]; language: string }> => {
-  const response = await fetch(url, { 
+  let response = await fetch(url, { 
     signal: AbortSignal.timeout(15000),
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -23,7 +23,17 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
   });
   
   if (!response.ok) {
-    throw new Error(`Failed to fetch article (Status: ${response.status})`);
+    console.warn(`Primary fetch failed (${response.status}), falling back to Jina API for ${url}`);
+    response = await fetch(`https://r.jina.ai/${url}`, {
+      headers: {
+        'X-Return-Format': 'html'
+      },
+      signal: AbortSignal.timeout(15000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch article (Status: ${response.status}) even with Jina fallback`);
+    }
   }
   
   const html = await response.text();
