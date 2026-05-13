@@ -23,6 +23,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
    - **RSS Syndication**: The admin can add RSS syndications to automatically ingest blog posts. A scheduled cron job (via Cloud Scheduler) periodically syncs new items.
 4. **Content Management**:
    - Ingested items are added to a specific feed.
+   - The admin can silently reprocess existing items to apply audio generation improvements in-place without triggering new episode alerts for subscribers.
    - The admin can remove previously added items.
    - The admin can play/listen to the generated audio content directly through the admin site.
 5. **Statistics & Analytics**:

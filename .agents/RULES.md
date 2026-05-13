@@ -26,6 +26,9 @@ trigger: always_on
 - `cloud-deploy.sh` should be idempotent, meaning I can run it over and over without causing problems.
 - `cloud-teardown.sh` must act as a true nuclear option. It must exact the exact inverse of the deploy script and completely obliterate ALL provisioned infrastructure (including databases, buckets, and queues). Do not hesitate or skip deleting data out of caution; absolute infrastructure parity is required.
 
+## Data Processing & Operations
+- **Silent Reprocessing**: If bulk reprocessing is implemented in the future (e.g., to apply audio generation improvements to old episodes), the reprocessing mechanism must be "silent" for end-users. It must update the existing `FeedItem` documents in-place (updating the `media_url` while keeping the exact same document ID) so that the RSS `<guid>` remains unchanged. This prevents podcast apps from treating reprocessed audio as brand new episodes and spamming listeners.
+
 ## Code Quality
 - Ensure code is properly linted and resolves all warnings (e.g., unused variables) before committing.
 - If you create temporary test files, don't keep these laying around unless told so.
