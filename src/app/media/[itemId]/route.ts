@@ -6,8 +6,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ item
   try {
     let { itemId } = await params;
     
-    // Remove .mp3 extension if present
-    itemId = itemId.replace(/\.mp3$/, '');
+    // Remove .mp3 or .wav extension if present
+    itemId = itemId.replace(/\.(mp3|wav)$/, '');
     
     const item = await getFeedItemById(itemId);
     

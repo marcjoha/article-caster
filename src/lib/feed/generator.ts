@@ -28,7 +28,7 @@ export const generatePodcastRss = (feed: Feed, items: FeedItem[], hostUrl: strin
   items.forEach(item => {
     const itemDescription = item.description.substring(0, 4000);
     const isWav = item.media_url.toLowerCase().endsWith('.wav');
-    const mediaProxyUrl = `${hostUrl}/media/${item.id!}.mp3`;
+    const mediaProxyUrl = `${hostUrl}/media/${item.id!}.${isWav ? 'wav' : 'mp3'}`;
     
     podcast.addItem({
       title: item.title,

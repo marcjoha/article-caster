@@ -5,17 +5,6 @@ const ai = new GoogleGenAI({
   location: 'us-central1' // TTS preview model is only available in us-central1
 });
 
-// Fix for lamejs ReferenceError: MPEGMode is not defined
-if (typeof global !== 'undefined') {
-  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
-  (global as any).MPEGMode = require('lamejs/src/js/MPEGMode.js');
-  (global as any).Lame = require('lamejs/src/js/Lame.js');
-  (global as any).BitStream = require('lamejs/src/js/BitStream.js');
-}
-const lamejs = require('lamejs');
-/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
-const { Mp3Encoder } = lamejs;
-
 interface SynthesizeOptions {
   textBlocks: string[];
   language: string;
@@ -33,6 +22,24 @@ const resolveVoice = (voicePreference?: string) => {
 interface SynthesizeResult {
   audioBuffer: Buffer;
   durationSeconds: number;
+}
+
+function getWavHeader(dataLength: number, sampleRate: number = 24000, numChannels: number = 1, bitsPerSample: number = 16) {
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataLength, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); // Subchunk1Size
+  header.writeUInt16LE(1, 20); // AudioFormat (1 = PCM)
+  header.writeUInt16LE(numChannels, 22); // NumChannels
+  header.writeUInt32LE(sampleRate, 24); // SampleRate
+  header.writeUInt32LE(sampleRate * numChannels * (bitsPerSample / 8), 28); // ByteRate
+  header.writeUInt16LE(numChannels * (bitsPerSample / 8), 32); // BlockAlign
+  header.writeUInt16LE(bitsPerSample, 34); // BitsPerSample
+  header.write('data', 36);
+  header.writeUInt32LE(dataLength, 40); // Subchunk2Size
+  return header;
 }
 
 export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<SynthesizeResult> => {
@@ -119,26 +126,8 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
   const combinedPcm = Buffer.concat(audioBuffers);
   const durationSeconds = Math.round(combinedPcm.length / 48000); // 24000Hz * 1 channel * 2 bytes/sample = 48000 bytes/sec
 
-  // Convert Buffer to Int16Array for lamejs
-  const samples = new Int16Array(combinedPcm.buffer, combinedPcm.byteOffset, combinedPcm.length / 2);
-  const mp3encoder = new Mp3Encoder(1, 24000, 32); // mono, 24000Hz, 32kbps
-  
-  const mp3Data: Buffer[] = [];
-  const sampleBlockSize = 576; // MPEG-2 LSF uses 576 samples per frame
-  
-  for (let i = 0; i < samples.length; i += sampleBlockSize) {
-    const sampleChunk = samples.subarray(i, i + sampleBlockSize);
-    const encoded = mp3encoder.encodeBuffer(sampleChunk);
-    if (encoded.length > 0) {
-      mp3Data.push(Buffer.from(encoded));
-    }
-  }
-  
-  const flushed = mp3encoder.flush();
-  if (flushed.length > 0) {
-    mp3Data.push(Buffer.from(flushed));
-  }
+  const header = getWavHeader(combinedPcm.length, 24000);
+  const audioBuffer = Buffer.concat([header, combinedPcm]);
 
-  const audioBuffer = Buffer.concat(mp3Data);
   return { audioBuffer, durationSeconds };
 };

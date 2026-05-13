@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const { audioBuffer, durationSeconds } = await synthesizeSpeech({ textBlocks, language, voicePreference });
     
     const fileId = uuidv4();
-    const mediaUrl = await uploadFile(`article/${fileId}.mp3`, audioBuffer, 'audio/mpeg');
+    const mediaUrl = await uploadFile(`article/${fileId}.wav`, audioBuffer, 'audio/wav');
     
     await createFeedItem({
       feed_id: feedId,
