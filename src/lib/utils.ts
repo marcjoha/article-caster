@@ -1,7 +1,7 @@
 /**
  * Formats a date as YYYY-MM-DD
  */
-export function formatDate(date: Date | string | number): string {
+function formatDate(date: Date | string | number): string {
   const d = new Date(date);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
