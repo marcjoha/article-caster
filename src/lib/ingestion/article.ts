@@ -56,7 +56,7 @@ HTML:
 ${article.content}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3.1-flash',
       contents: prompt,
       config: {
         safetySettings: [
