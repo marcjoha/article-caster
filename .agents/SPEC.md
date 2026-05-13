@@ -47,7 +47,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 *   **Core Integrations**:
     *   **Google Cloud Tasks**: Used to queue and process long-running article ingestion tasks asynchronously to prevent web request timeouts.
     *   **Google Cloud Scheduler**: Triggers daily RSS syndication cron jobs to automatically ingest new blog posts.
-    *   **Article Extraction**: `@mozilla/readability` paired with `jsdom` to extract clean text, followed by a Gemini LLM to remove boilerplate and ads.
+    *   **Article Extraction**: Primary direct fetch with Jina Reader API fallback, paired with `@mozilla/readability` and `jsdom` to extract clean text, followed by a Gemini LLM to remove boilerplate and ads.
     *   **Text-to-Speech (TTS)**: Gemini 3.1 Flash TTS API for highly expressive, human-like podcast audio.
     *   **Podcast Feed**: `podcast` npm package (supports RSS 2.0 with iTunes extensions for audio enclosures).
 
