@@ -156,6 +156,8 @@ body {
 
 .article-table td:first-child {
   padding-left: 1.5rem;
+  width: 1%;
+  white-space: nowrap;
 }
 
 .article-table td:last-child {
@@ -199,12 +201,16 @@ body {
 }
 
 .article-audio-cell {
-  width: 260px;
+  width: auto;
+  min-width: 200px;
+  padding-right: 0.5rem !important;
 }
 
 .article-actions-cell {
-  width: 60px;
+  width: 1%;
+  padding-left: 0.5rem !important;
   text-align: right;
+  white-space: nowrap;
 }
 
 .article-table audio {

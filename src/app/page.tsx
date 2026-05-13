@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import Image from 'next/image';
 import { getFeeds, getFeedItems, getSyndications } from '@/lib/firestore';
 import FeedForm from './FeedForm';
-import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay } from './ClientButtons';
+import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay, ReprocessItemButton } from './ClientButtons';
 import IngestionTabs from './IngestionTabs';
 import FeedSelector from './FeedSelector';
 import ProcessingList from './ProcessingList';
@@ -158,7 +158,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                             <audio controls src={item.media_url} />
                           </td>
                           <td className="article-actions-cell">
-                            <DeleteItemButton itemId={item.id!} />
+                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>
+                              <ReprocessItemButton itemId={item.id!} />
+                              <DeleteItemButton itemId={item.id!} />
+                            </div>
                           </td>
                         </tr>
                       ))}
