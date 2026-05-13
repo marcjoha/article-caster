@@ -49,7 +49,7 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
   let currentChunk = '';
   
   for (const block of options.textBlocks) {
-    if (currentChunk.length + block.length > 1500) {
+    if (currentChunk.length + block.length > 1200) {
       if (currentChunk.trim()) {
         chunks.push(currentChunk);
       }
