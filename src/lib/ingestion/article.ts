@@ -8,7 +8,7 @@ dns.setDefaultResultOrder('ipv4first');
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
-  location: 'us-central1'
+  location: 'europe-west1'
 });
 
 
@@ -48,15 +48,27 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
 
   let cleanedHtml = article.content || '';
   try {
-    const prompt = `You are an assistant preparing articles for text-to-speech. 
-Please take the following extracted article HTML and remove any boilerplate, metadata, 'read time' indicators, 'listen to this article' buttons, author bios, and site navigation that do not belong to the main narrative. 
-Output ONLY the clean valid HTML for the main narrative. Do not use markdown code blocks.
+    const prompt = `You are an expert content editor preparing an article for text-to-speech podcast generation. 
+Your task is to extract ONLY the main narrative and clean it up.
+
+You MUST completely REMOVE the following elements:
+- Author bios, background information, or author titles
+- 'Read time' indicators and publishing dates
+- 'Listen to this article' or audio player buttons
+- Social media sharing links
+- Related articles, 'Read More', or 'See More' sections
+- Comment sections, user replies, or discussion threads
+- Image captions, image credits, or interactive visual instructions (e.g., 'click on the image to make it bigger')
+- Any site navigation, footer, or boilerplate text
+- Newsletter signup forms
+
+Output ONLY the clean valid HTML for the main narrative. Do not use markdown code blocks or add any conversational text.
 
 HTML:
 ${article.content}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         safetySettings: [
