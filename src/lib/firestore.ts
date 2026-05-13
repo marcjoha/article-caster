@@ -144,7 +144,11 @@ export const getFeedItemById = async (itemId: string): Promise<FeedItem | null> 
   const doc = await db.collection('items').doc(itemId).get();
   if (!doc.exists) return null;
   const data = doc.data()!;
-  return { ...data, created_at: data.created_at.toDate() } as FeedItem;
+  return { ...data, id: doc.id, created_at: data.created_at.toDate() } as FeedItem;
+};
+
+export const updateFeedItem = async (itemId: string, updates: Partial<FeedItem>) => {
+  await db.collection('items').doc(itemId).update(updates);
 };
 
 export const deleteFeedItem = async (itemId: string) => {
@@ -167,6 +171,7 @@ export interface Ingestion {
   error?: string;
   created_at: Date;
   origin?: 'article' | 'rss';
+  item_id?: string;
 }
 
 export const createIngestion = async (ingestion: Omit<Ingestion, 'id' | 'created_at' | 'status'>) => {

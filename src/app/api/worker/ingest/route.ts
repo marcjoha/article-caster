@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { extractArticleContent } from '@/lib/ingestion/article';
 import { synthesizeSpeech } from '@/lib/ingestion/tts';
-import { uploadFile } from '@/lib/storage';
-import { createFeedItem, updateIngestion, db, Feed } from '@/lib/firestore';
+import { uploadFile, deleteFile } from '@/lib/storage';
+import { createFeedItem, updateFeedItem, getFeedItemById, updateIngestion, db, Feed } from '@/lib/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
-  const { ingestionId, feedId, url, origin } = await request.json();
+  const { ingestionId, feedId, url, origin, itemId } = await request.json();
 
   if (!ingestionId || !feedId || !url) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -36,17 +36,34 @@ export async function POST(request: Request) {
     const fileId = uuidv4();
     const mediaUrl = await uploadFile(`article/${fileId}.wav`, audioBuffer, 'audio/wav');
     
-    await createFeedItem({
-      feed_id: feedId,
-      title,
-      description: textContent.substring(0, 200) + '...',
-      source_url: url,
-      media_url: mediaUrl,
-      type: 'audio',
-      size_bytes: audioBuffer.length,
-      duration_seconds: durationSeconds,
-      origin: origin || 'article', // Default to article if missing
-    });
+    if (itemId) {
+      const existingItem = await getFeedItemById(itemId);
+      const oldMediaUrl = existingItem?.media_url;
+      
+      await updateFeedItem(itemId, {
+        title,
+        description: textContent.substring(0, 200) + '...',
+        media_url: mediaUrl,
+        size_bytes: audioBuffer.length,
+        duration_seconds: durationSeconds,
+      });
+
+      if (oldMediaUrl && oldMediaUrl !== mediaUrl) {
+        deleteFile(oldMediaUrl).catch(e => console.error("Failed to delete old media file:", e));
+      }
+    } else {
+      await createFeedItem({
+        feed_id: feedId,
+        title,
+        description: textContent.substring(0, 200) + '...',
+        source_url: url,
+        media_url: mediaUrl,
+        type: 'audio',
+        size_bytes: audioBuffer.length,
+        duration_seconds: durationSeconds,
+        origin: origin || 'article', // Default to article if missing
+      });
+    }
 
     // Mark as completed
     await updateIngestion(ingestionId, { status: 'completed' });
