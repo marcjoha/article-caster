@@ -39,7 +39,7 @@ A personal podcast feed generator that converts web articles into spoken-word au
 ### Prerequisites
 
 - Node.js 24+
-- A Google Cloud project with Firestore, Cloud Storage, Cloud Tasks, and Text-to-Speech APIs enabled
+- A Google Cloud project with Firestore, Cloud Storage, Cloud Tasks, and Vertex AI APIs enabled
 
 ### Environment Variables
 

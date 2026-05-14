@@ -35,18 +35,7 @@ If the output is `CONTAMINATED`, regenerate a clean lockfile before deploying:
 rm package-lock.json && npm install --package-lock-only --registry=https://registry.npmjs.org
 ```
 
-## 3. Uncommitted Changes Check
-
-Check for uncommitted changes. Deploying from a dirty working tree means the deployed version doesn't match any commit.
-
-// turbo
-```bash
-git status --porcelain
-```
-
-If the output is non-empty, warn the user that there are uncommitted changes and ask whether to continue or abort. If the user wants to commit first, suggest using the `/push` workflow.
-
-## 4. Execute Deployment
+## 3. Execute Deployment
 
 Run the deployment script. This is a long-running command — monitor its output and wait for completion.
 
@@ -60,7 +49,7 @@ If the script fails:
 - **Auth errors from `gcloud`**: Ask the user to run `gcloud auth login` and retry.
 - **Build failures (`npm run build`)**: Stop and fix the build error before re-running.
 
-## 5. Post-Deploy Smoke Test
+## 4. Post-Deploy Smoke Test
 
 Verify the deployment is actually serving by hitting the public URL.
 
@@ -70,13 +59,13 @@ curl -s -o /dev/null -w "%{http_code}" <PUBLIC_URL>
 
 Replace `<PUBLIC_URL>` with the URL printed at the end of the deployment output. A `200` response confirms the service is healthy. Any other status code should be flagged to the user.
 
-## 6. Post-Deploy Documentation Check
+## 5. Post-Deploy Documentation Check
 
 Per `RULES.md`, the GCP topology image in `README.md` must be up-to-date with what's deployed.
 
 If the deployment involved infrastructure changes (e.g., new buckets, queues, databases, or service configurations), remind the user that `README.md` and `SPEC.md` may need updating to reflect the new topology.
 
-## 7. Summary
+## 6. Summary
 
 After a successful deployment, report:
 

@@ -30,7 +30,7 @@ TASKS_REGION="$CLOUD_TASKS_REGION"
 SERVICE_NAME="article-caster"
 
 echo -e "${BLUE}ℹ Enabling necessary Google Cloud APIs...${NC}"
-gcloud services enable firestore.googleapis.com texttospeech.googleapis.com storage.googleapis.com run.googleapis.com cloudbuild.googleapis.com cloudtasks.googleapis.com cloudscheduler.googleapis.com --project="$PROJECT_ID"
+gcloud services enable firestore.googleapis.com aiplatform.googleapis.com storage.googleapis.com run.googleapis.com cloudbuild.googleapis.com cloudtasks.googleapis.com cloudscheduler.googleapis.com --project="$PROJECT_ID"
 
 echo -e "${BLUE}ℹ Ensuring Firestore database exists...${NC}"
 if ! gcloud firestore databases describe --database="(default)" --project="$PROJECT_ID" >/dev/null 2>&1; then
