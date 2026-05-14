@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
-import { createIngestion } from '@/lib/firestore';
+import { createIngestion, getFeedItems, getActiveIngestions } from '@/lib/firestore';
 import { CloudTasksClient } from '@google-cloud/tasks';
 
 export async function POST(request: Request) {
   try {
     const { feedId, url } = await request.json();
+    
+    // Deduplication check
+    const existingItems = await getFeedItems(feedId);
+    if (existingItems.some(item => item.source_url === url)) {
+      return NextResponse.json({ error: 'This article already exists in your podcast feed.' }, { status: 400 });
+    }
+
+    const activeIngestions = await getActiveIngestions(feedId);
+    if (activeIngestions.some(ing => ing.url === url && (ing.status === 'pending' || ing.status === 'processing'))) {
+      return NextResponse.json({ error: 'This article is already currently processing.' }, { status: 400 });
+    }
     
     // Create pending ingestion record
     const ingestion = await createIngestion({
