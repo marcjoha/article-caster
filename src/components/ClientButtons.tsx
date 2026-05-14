@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export function FeedUrlDisplay({ path, baseUrl }: { path: string; baseUrl?: string }) {
   const [origin, setOrigin] = useState(baseUrl || '');
@@ -80,37 +81,14 @@ export function DeleteFeedButton({ feedId }: { feedId: string }) {
       </button>
 
       {showConfirm && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative', textAlign: 'left'}}>
-            <h2 style={{marginTop: 0, color: '#ef4444'}}>Delete Podcast</h2>
-            <p style={{marginBottom: '2rem', lineHeight: 1.5}}>
-              Are you sure you want to delete this podcast and ALL its episodes? This cannot be undone.
-            </p>
-
-            <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
-              <button 
-                onClick={() => setShowConfirm(false)}
-                className="btn"
-                style={{backgroundColor: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-secondary)'}}
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleConfirmDelete}
-                className="btn"
-                style={{backgroundColor: '#ef4444'}}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="Delete Podcast"
+          message="Are you sure you want to delete this podcast and ALL its episodes? This cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowConfirm(false)}
+          isLoading={isDeleting}
+        />
       )}
     </>
   );
@@ -143,36 +121,14 @@ export function DeleteItemButton({ itemId }: { itemId: string }) {
       </button>
 
       {showConfirm && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative', textAlign: 'left'}}>
-            <h2 style={{marginTop: 0, color: '#ef4444'}}>Delete Episode</h2>
-            <p style={{marginBottom: '2rem', lineHeight: 1.5}}>
-              Are you sure you want to delete this episode?
-            </p>
-            <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
-              <button 
-                onClick={() => setShowConfirm(false)}
-                className="btn"
-                style={{backgroundColor: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-secondary)'}}
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleConfirmDelete}
-                className="btn"
-                style={{backgroundColor: '#ef4444'}}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="Delete Episode"
+          message="Are you sure you want to delete this episode?"
+          confirmLabel="Delete"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowConfirm(false)}
+          isLoading={isDeleting}
+        />
       )}
     </>
   );

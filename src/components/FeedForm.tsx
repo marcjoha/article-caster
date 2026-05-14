@@ -15,20 +15,12 @@ interface FeedFormProps {
   };
   buttonText?: string;
   buttonStyle?: React.CSSProperties;
-  buttonClassName?: string;
-  hideTrigger?: boolean;
-  externalIsOpen?: boolean;
-  onExternalClose?: () => void;
 }
 
 export default function FeedForm({ 
   initialData, 
   buttonText = '+ Add New', 
   buttonStyle, 
-  buttonClassName = "btn",
-  hideTrigger = false,
-  externalIsOpen = false,
-  onExternalClose
 }: FeedFormProps) {
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
@@ -40,8 +32,7 @@ export default function FeedForm({
   const [audioPrefixMessage, setAudioPrefixMessage] = useState(initialData?.audio_prefix_message || '');
   const [loading, setLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [internalIsOpen, setInternalIsOpen] = useState(false);
-  const isOpen = externalIsOpen || internalIsOpen;
+  const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -84,8 +75,7 @@ export default function FeedForm({
   };
 
   const handleClose = () => {
-    if (onExternalClose) onExternalClose();
-    setInternalIsOpen(false);
+    setIsOpen(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,15 +123,13 @@ export default function FeedForm({
 
   return (
     <>
-      {!hideTrigger && (
-        <button 
-          onClick={() => setInternalIsOpen(true)}
-          className={buttonClassName}
-          style={buttonStyle || {padding: '0.4rem 0.8rem', fontSize: '0.875rem', whiteSpace: 'nowrap'}}
-        >
-          {buttonText}
-        </button>
-      )}
+      <button 
+        onClick={() => setIsOpen(true)}
+        className="btn"
+        style={buttonStyle || {padding: '0.4rem 0.8rem', fontSize: '0.875rem', whiteSpace: 'nowrap'}}
+      >
+        {buttonText}
+      </button>
 
       {isOpen && (
         <div style={{

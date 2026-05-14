@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Syndication } from '@/lib/firestore';
 import { formatDateTime } from '@/lib/utils';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function IngestionTabs({ feedId, syndications }: { feedId: string, syndications: Syndication[] }) {
   const [activeTab, setActiveTab] = useState<'article' | 'rss'>('article');
@@ -215,36 +216,14 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
       )}
 
       {syndicationToDelete && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative', textAlign: 'left'}}>
-            <h2 style={{marginTop: 0, color: '#ef4444'}}>Remove RSS Feed</h2>
-            <p style={{marginBottom: '2rem', lineHeight: 1.5}}>
-              Are you sure you want to remove this RSS feed subscription?
-            </p>
-            <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
-              <button 
-                onClick={() => setSyndicationToDelete(null)}
-                className="btn"
-                style={{backgroundColor: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-secondary)'}}
-                disabled={isDeletingRss}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleDeleteRss}
-                className="btn"
-                style={{backgroundColor: '#ef4444'}}
-                disabled={isDeletingRss}
-              >
-                {isDeletingRss ? 'Removing...' : 'Remove'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="Remove RSS Feed"
+          message="Are you sure you want to remove this RSS feed subscription?"
+          confirmLabel="Remove"
+          onConfirm={handleDeleteRss}
+          onCancel={() => setSyndicationToDelete(null)}
+          isLoading={isDeletingRss}
+        />
       )}
     </div>
   );

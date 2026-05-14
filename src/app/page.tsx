@@ -1,12 +1,12 @@
 import { headers } from 'next/headers';
 import Image from 'next/image';
 import { getFeeds, getFeedItems, getSyndications } from '@/lib/firestore';
-import FeedForm from './FeedForm';
-import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay, ReprocessItemButton } from './ClientButtons';
-import IngestionTabs from './IngestionTabs';
-import FeedSelector from './FeedSelector';
-import ProcessingList from './ProcessingList';
-import FeedStats from './FeedStats';
+import FeedForm from '@/components/FeedForm';
+import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay, ReprocessItemButton } from '@/components/ClientButtons';
+import IngestionTabs from '@/components/IngestionTabs';
+import FeedSelector from '@/components/FeedSelector';
+import ProcessingList from '@/components/ProcessingList';
+import FeedStats from '@/components/FeedStats';
 
 import { formatDateTime } from '@/lib/utils';
 

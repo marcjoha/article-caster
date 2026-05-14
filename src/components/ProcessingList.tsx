@@ -43,6 +43,22 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
     return () => clearInterval(interval);
   }, [feedId, router]);
 
+  const formatError = (errorStr: string) => {
+    try {
+      const jsonStart = errorStr.indexOf('{');
+      if (jsonStart !== -1) {
+        const jsonStr = errorStr.substring(jsonStart);
+        const parsed = JSON.parse(jsonStr);
+        if (parsed.error && parsed.error.message) {
+          return parsed.error.message;
+        }
+      }
+    } catch {
+      // fall through
+    }
+    return errorStr;
+  };
+
   if (ingestions.length === 0) return null;
 
   const hasFailed = ingestions.some(ing => ing.status === 'failed');
@@ -62,9 +78,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
   };
 
   const handleTryAgain = async (ing: Ingestion) => {
-    // Optimistically remove the failed one from UI
-    setIngestions(prev => prev.filter(i => i.id !== ing.id));
-    
+    // We shouldn't optimistically remove it until we know it succeeded, or at least show an error.
     try {
       // 1. Delete the old failed ingestion
       if (ing.id) {
@@ -72,15 +86,24 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
       }
       
       // 2. Add it back to the queue
-      await fetch('/api/ingest', {
+      const res = await fetch('/api/ingest', {
         method: 'POST',
         body: JSON.stringify({ feedId, url: ing.url }),
         headers: { 'Content-Type': 'application/json' },
       });
       
+      if (!res.ok) {
+        const errData = await res.json();
+        alert(`Failed to retry: ${errData.error || res.statusText}`);
+      } else {
+        // Remove from UI only on success to prevent vanishing
+        setIngestions(prev => prev.filter(i => i.id !== ing.id));
+      }
+      
       router.refresh();
     } catch (e) {
       console.error('Failed to retry ingestion', e);
+      alert('Network error while retrying.');
     }
   };
 
@@ -116,9 +139,9 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
                 </td>
                 <td className="article-audio-cell" colSpan={2}>
                   {ing.status === 'failed' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem' }}>
-                      <div style={{ color: '#ef4444', fontSize: '0.875rem', fontWeight: 600, textAlign: 'right' }}>
-                        {ing.error || 'Unknown error'}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem', overflow: 'hidden' }}>
+                      <div style={{ color: '#ef4444', fontSize: '0.875rem', fontWeight: 600, textAlign: 'right', wordBreak: 'break-word', whiteSpace: 'pre-wrap', maxWidth: '300px' }}>
+                        {formatError(ing.error || 'Unknown error')}
                       </div>
                       <button 
                         onClick={() => handleTryAgain(ing)}
@@ -143,4 +166,3 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
     </div>
   );
 }
-
