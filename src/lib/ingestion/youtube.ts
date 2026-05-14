@@ -18,6 +18,8 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
   const { stdout: metadataJson } = await execFileAsync(customYtDlpPath, [
     '--dump-json',
     '--no-playlist',
+    '--js-runtimes', 'nodejs',
+    '--extractor-args', 'youtube:player_client=ios',
     url
   ], { maxBuffer: 10 * 1024 * 1024 });
 
@@ -34,6 +36,8 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
     '-f', 'bestaudio', // Download best audio format
     '-o', outputPath,
     '--no-playlist',
+    '--js-runtimes', 'nodejs',
+    '--extractor-args', 'youtube:player_client=ios',
     url
   ], { maxBuffer: 10 * 1024 * 1024 });
 
