@@ -83,9 +83,13 @@ mkdir -p .next/standalone/node_modules/@google-cloud/
 cp -r node_modules/@google-cloud/tasks .next/standalone/node_modules/@google-cloud/
 
 echo -e "${BLUE}ℹ Downloading static FFmpeg for Linux...${NC}"
-node scripts/download-ffmpeg.js linux
 mkdir -p .next/standalone/bin
+# Delete any existing binary to ensure ffbinaries downloads the linux version
+rm -f bin/ffmpeg
+node scripts/download-ffmpeg.js linux
 cp bin/ffmpeg .next/standalone/bin/ffmpeg
+# Restore the macOS binary for local development
+node scripts/download-ffmpeg.js mac
 
 echo -e "${BLUE}ℹ Getting public URL for service...${NC}"
 PUBLIC_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --project="$PROJECT_ID" --format="value(status.url)" 2>/dev/null || echo "")
