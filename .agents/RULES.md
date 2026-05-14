@@ -27,12 +27,16 @@ trigger: always_on
 - `cloud-teardown.sh` must act as a true nuclear option. It must exact the exact inverse of the deploy script and completely obliterate ALL provisioned infrastructure (including databases, buckets, and queues). Do not hesitate or skip deleting data out of caution; absolute infrastructure parity is required.
 
 ## Data Processing & Operations
-- **Silent Reprocessing**: If bulk reprocessing is implemented in the future (e.g., to apply audio generation improvements to old episodes), the reprocessing mechanism must be "silent" for end-users. It must update the existing `FeedItem` documents in-place (updating the `media_url` while keeping the exact same document ID) so that the RSS `<guid>` remains unchanged. This prevents podcast apps from treating reprocessed audio as brand new episodes and spamming listeners.
+- **Subscriber-First Principle**: Every podcast feed is a live product with real subscribers. Any operation that adds, removes, or reprocesses articles in a podcast **must** be evaluated through the lens of the end listener's experience.
+  - **No Duplicates**: It is absolutely unacceptable for a listener to receive a duplicate episode in their feed. When reprocessing an article (e.g., to improve audio quality or clean up content), the existing `FeedItem` document must be updated **in-place** — preserving the original document ID and RSS `<guid>` — so podcast apps never treat it as a new episode.
+  - **Silent by Default**: All reprocessing operations must be invisible to subscribers. Updated audio must seamlessly replace the old version without triggering new-episode notifications in podcast clients.
+  - **Guard Against Re-ingestion**: Before ingesting any article, the system must verify that the article has not already been processed for the target podcast. Duplicate detection should be robust and not solely rely on URL matching (e.g., consider content hashes or canonical identifiers).
 
 ## Code Quality
 - Ensure code is properly linted and resolves all warnings (e.g., unused variables) before committing.
 - If you create temporary test files, don't keep these laying around unless told so.
 - Never leave dead code behind.
+- **Leverage Skills**: When writing or modifying code, always apply framework-specific best practices from your available Skills (e.g., React, Next.js, TypeScript). Proactively refactor code that deviates from established patterns — such as eliminating duplication, extracting shared utilities, and using idiomatic framework conventions.
 
 ## Error Handling & Logging
 - All data-fetching logic and third-party integrations must include robust error handling (e.g., `try/catch`) and log errors with sufficient context using `console.error`.
