@@ -82,6 +82,11 @@ echo -e "${BLUE}ℹ Preparing standalone deployment...${NC}"
 mkdir -p .next/standalone/node_modules/@google-cloud/
 cp -r node_modules/@google-cloud/tasks .next/standalone/node_modules/@google-cloud/
 
+echo -e "${BLUE}ℹ Downloading static FFmpeg for Linux...${NC}"
+node scripts/download-ffmpeg.js linux
+mkdir -p .next/standalone/bin
+cp bin/ffmpeg .next/standalone/bin/ffmpeg
+
 echo -e "${BLUE}ℹ Getting public URL for service...${NC}"
 PUBLIC_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --project="$PROJECT_ID" --format="value(status.url)" 2>/dev/null || echo "")
 
@@ -96,6 +101,8 @@ gcloud beta run deploy "$SERVICE_NAME" \
   --command=node \
   --args=server.js \
   --timeout=3600 \
+  --cpu=2 \
+  --memory=1024Mi \
   --set-env-vars="^@^GOOGLE_CLOUD_PROJECT=$PROJECT_ID@ADMIN_PASSCODE=$ADMIN_PASSCODE@GCS_BUCKET_NAME=$BUCKET_NAME@PUBLIC_URL=$PUBLIC_URL@QUEUE_NAME=$QUEUE_NAME@CLOUD_TASKS_REGION=$TASKS_REGION"
 
 if [ -z "$PUBLIC_URL" ]; then

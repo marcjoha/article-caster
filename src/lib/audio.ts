@@ -1,3 +1,41 @@
+import ffmpeg from 'fluent-ffmpeg';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
+const customFfmpegPath = path.join(process.cwd(), 'bin', 'ffmpeg');
+ffmpeg.setFfmpegPath(customFfmpegPath);
+
+export function applyLoudnessNormalization(inputBuffer: Buffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const tmpDir = os.tmpdir();
+    const inputPath = path.join(tmpDir, `input-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`);
+    const outputPath = path.join(tmpDir, `output-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`);
+
+    fs.writeFileSync(inputPath, inputBuffer);
+
+    ffmpeg(inputPath)
+      .audioFilters('loudnorm=I=-19:LRA=4:TP=-1.0')
+      .toFormat('wav')
+      .on('end', () => {
+        try {
+          const outputBuffer = fs.readFileSync(outputPath);
+          fs.unlinkSync(inputPath);
+          fs.unlinkSync(outputPath);
+          resolve(outputBuffer);
+        } catch (e) {
+          reject(e);
+        }
+      })
+      .on('error', (err) => {
+        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+        reject(err);
+      })
+      .save(outputPath);
+  });
+}
+
 /**
  * Creates a WAV file header for raw PCM audio data.
  */
