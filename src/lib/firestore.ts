@@ -200,7 +200,7 @@ export const getActiveIngestions = async (feedId: string): Promise<Ingestion[]> 
   return snapshot.docs
     .map(doc => {
       const data = doc.data();
-      return { ...data, created_at: data.created_at.toDate() } as Ingestion;
+      return { id: doc.id, ...data, created_at: data.created_at.toDate() } as Ingestion;
     })
     .filter(ing => ing.status === 'pending' || ing.status === 'processing' || ing.status === 'failed');
 };
@@ -212,7 +212,7 @@ export const getIngestionHistory = async (feedId: string): Promise<Ingestion[]> 
     
   return snapshot.docs.map(doc => {
     const data = doc.data();
-    return { ...data, created_at: data.created_at.toDate() } as Ingestion;
+    return { id: doc.id, ...data, created_at: data.created_at.toDate() } as Ingestion;
   });
 };
 

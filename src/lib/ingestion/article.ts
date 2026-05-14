@@ -117,18 +117,18 @@ ${article.content}`;
     for (const sentence of sentences) {
       if (!sentence.trim()) continue;
 
-      if (currentChunk.length + sentence.length > 1200) {
+      if (currentChunk.length + sentence.length > 300) {
         if (currentChunk) {
           textBlocks.push(`${currentChunk.trim()}${pauseStr}`);
           currentChunk = '';
         }
 
         let remaining = sentence;
-        while (remaining.length > 1200) {
+        while (remaining.length > 300) {
           const chars = Array.from(remaining);
-          const safeChunk = chars.slice(0, 1200).join('');
+          const safeChunk = chars.slice(0, 300).join('');
           textBlocks.push(`${safeChunk}${pauseStr}`);
-          remaining = chars.slice(1200).join('');
+          remaining = chars.slice(300).join('');
         }
         currentChunk = remaining;
       } else {

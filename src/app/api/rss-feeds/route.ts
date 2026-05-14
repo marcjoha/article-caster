@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSyndication, deleteSyndication } from '@/lib/firestore';
+import { enqueueIngestion } from '@/lib/tasks';
 
 export async function POST(request: Request) {
   try {
@@ -21,20 +22,6 @@ export async function POST(request: Request) {
       
       if (feed.items && feed.items.length > 0 && initialAction !== 'future') {
         const { createIngestion } = await import('@/lib/firestore');
-        const isLocal = !process.env.K_SERVICE && process.env.NODE_ENV === 'development';
-        let cloudTasksClient: import('@google-cloud/tasks').CloudTasksClient | null = null;
-        let parent: string = '';
-        let serviceUrl: string = '';
-
-        if (!isLocal) {
-          const { CloudTasksClient } = await import('@google-cloud/tasks');
-          cloudTasksClient = new CloudTasksClient();
-          const project = process.env.GOOGLE_CLOUD_PROJECT!;
-          const queue = process.env.QUEUE_NAME || 'article-caster-queue';
-          const location = process.env.CLOUD_TASKS_REGION || 'europe-west1';
-          parent = cloudTasksClient.queuePath(project, location, queue);
-          serviceUrl = process.env.PUBLIC_URL || '';
-        }
 
         const itemsToProcess = initialAction === 'all' ? feed.items : [feed.items[0]];
 
@@ -47,27 +34,12 @@ export async function POST(request: Request) {
               origin: 'rss',
             });
 
-            if (isLocal) {
-              fetch(`http://localhost:3000/api/worker/ingest`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ingestionId: ingestion.id, feedId, url: itemUrl, origin: 'rss' }),
-              }).catch(console.error);
-            } else if (serviceUrl) {
-              const task = {
-                httpRequest: {
-                  httpMethod: 'POST' as const,
-                  url: `${serviceUrl}/api/worker/ingest`,
-                  body: Buffer.from(JSON.stringify({ ingestionId: ingestion.id, feedId, url: itemUrl, origin: 'rss' })).toString('base64'),
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                },
-              };
-              if (cloudTasksClient) {
-                await cloudTasksClient.createTask({ parent, task });
-              }
-            }
+            await enqueueIngestion({
+              ingestionId: ingestion.id!,
+              feedId,
+              url: itemUrl,
+              origin: 'rss',
+            });
           }
         }
       }
@@ -107,3 +79,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

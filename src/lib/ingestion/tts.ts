@@ -1,4 +1,6 @@
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
+import { createWavHeader } from '@/lib/audio';
+
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
@@ -24,23 +26,7 @@ interface SynthesizeResult {
   durationSeconds: number;
 }
 
-function getWavHeader(dataLength: number, sampleRate: number = 24000, numChannels: number = 1, bitsPerSample: number = 16) {
-  const header = Buffer.alloc(44);
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + dataLength, 4);
-  header.write('WAVE', 8);
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16); // Subchunk1Size
-  header.writeUInt16LE(1, 20); // AudioFormat (1 = PCM)
-  header.writeUInt16LE(numChannels, 22); // NumChannels
-  header.writeUInt32LE(sampleRate, 24); // SampleRate
-  header.writeUInt32LE(sampleRate * numChannels * (bitsPerSample / 8), 28); // ByteRate
-  header.writeUInt16LE(numChannels * (bitsPerSample / 8), 32); // BlockAlign
-  header.writeUInt16LE(bitsPerSample, 34); // BitsPerSample
-  header.write('data', 36);
-  header.writeUInt32LE(dataLength, 40); // Subchunk2Size
-  return header;
-}
+
 
 function crossfadeBuffers(buffers: Buffer[], overlapSamples: number = 1200): Buffer {
   const validBuffers = buffers.filter(b => b && b.length > 0);
@@ -123,14 +109,12 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
     return { audioBuffer: Buffer.alloc(0), durationSeconds: 0 };
   }
 
-  const CONCURRENCY_LIMIT = 1;
+  const CONCURRENCY_LIMIT = 3;
+  const MAX_RETRIES = 3;
   const audioBuffers: Buffer[] = new Array(chunks.length);
 
-  for (let i = 0; i < chunks.length; i += CONCURRENCY_LIMIT) {
-    const batch = chunks.slice(i, i + CONCURRENCY_LIMIT);
-    const batchPromises = batch.map(async (chunk, batchIndex) => {
-      const globalIndex = i + batchIndex;
-
+  const synthesizeChunk = async (chunk: string, index: number): Promise<void> => {
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
         const response = await ai.models.generateContent({
           model: 'gemini-3.1-flash-tts-preview',
@@ -166,24 +150,33 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
           console.error('Gemini TTS missing audio payload. Full response:', JSON.stringify(response, null, 2));
           throw new Error(errorMessage);
         }
-        audioBuffers[globalIndex] = Buffer.from(audioB64, 'base64');
+        audioBuffers[index] = Buffer.from(audioB64, 'base64');
+        return;
       } catch (err) {
-        console.error(`Error synthesizing chunk ${globalIndex}:`, err);
+        const isRetryable = err instanceof Error && /429|503|resource exhausted/i.test(err.message);
+
+        if (isRetryable && attempt < MAX_RETRIES) {
+          const backoffMs = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+          console.warn(`Chunk ${index} hit rate limit (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${backoffMs}ms...`);
+          await new Promise(r => setTimeout(r, backoffMs));
+          continue;
+        }
+
+        console.error(`Error synthesizing chunk ${index}:`, err);
         throw err;
       }
-    });
-
-    await Promise.all(batchPromises);
-    
-    if (i + CONCURRENCY_LIMIT < chunks.length) {
-      await new Promise(r => setTimeout(r, 1000));
     }
+  };
+
+  for (let i = 0; i < chunks.length; i += CONCURRENCY_LIMIT) {
+    const batch = chunks.slice(i, i + CONCURRENCY_LIMIT);
+    await Promise.all(batch.map((chunk, batchIndex) => synthesizeChunk(chunk, i + batchIndex)));
   }
 
   const combinedPcm = crossfadeBuffers(audioBuffers, 1200); // 50ms overlap at 24kHz
   const durationSeconds = Math.round(combinedPcm.length / 48000); // 24000Hz * 1 channel * 2 bytes/sample = 48000 bytes/sec
 
-  const header = getWavHeader(combinedPcm.length, 24000);
+  const header = createWavHeader(combinedPcm.length, 24000);
   const audioBuffer = Buffer.concat([header, combinedPcm]);
 
   return { audioBuffer, durationSeconds };

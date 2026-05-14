@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getAllSyndications, updateSyndication, createIngestion, getFeedItems, getIngestionHistory } from '@/lib/firestore';
+import { enqueueIngestion } from '@/lib/tasks';
 import Parser from 'rss-parser';
-import { CloudTasksClient } from '@google-cloud/tasks';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const isLocal = !process.env.K_SERVICE && process.env.NODE_ENV === 'development';
-  
   try {
     const syndications = await getAllSyndications();
     const parser = new Parser();
@@ -48,35 +46,12 @@ export async function GET() {
               origin: 'rss',
             });
 
-            if (isLocal) {
-              fetch(`http://localhost:3000/api/worker/ingest`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ingestionId: ingestion.id, feedId: syn.feed_id, url: itemUrl, origin: 'rss' }),
-              }).catch(console.error);
-            } else {
-              const client = new CloudTasksClient();
-              const project = process.env.GOOGLE_CLOUD_PROJECT!;
-              const queue = process.env.QUEUE_NAME || 'article-caster-queue';
-              const location = process.env.CLOUD_TASKS_REGION || 'europe-west1';
-              
-              const parent = client.queuePath(project, location, queue);
-              const serviceUrl = process.env.PUBLIC_URL;
-              
-              if (serviceUrl) {
-                const task = {
-                  httpRequest: {
-                    httpMethod: 'POST' as const,
-                    url: `${serviceUrl}/api/worker/ingest`,
-                    body: Buffer.from(JSON.stringify({ ingestionId: ingestion.id, feedId: syn.feed_id, url: itemUrl, origin: 'rss' })).toString('base64'),
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                  },
-                };
-                await client.createTask({ parent, task });
-              }
-            }
+            await enqueueIngestion({
+              ingestionId: ingestion.id!,
+              feedId: syn.feed_id,
+              url: itemUrl,
+              origin: 'rss',
+            });
 
             totalAdded++;
           }
@@ -100,3 +75,4 @@ export async function GET() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
