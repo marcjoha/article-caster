@@ -27,10 +27,12 @@ export function applyLoudnessNormalization(inputBuffer: Buffer): Promise<Buffer>
           reject(e);
         }
       })
-      .on('error', (err) => {
+      .on('error', (err, stdout, stderr) => {
+        console.error('FFmpeg Error:', err.message);
+        console.error('FFmpeg Stderr:', stderr);
         if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
         if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-        reject(err);
+        reject(new Error(`FFmpeg error: ${err.message}. Stderr: ${stderr}`));
       })
       .save(outputPath);
   });
