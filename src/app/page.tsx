@@ -51,7 +51,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                     </div>
                   )}
                 </div>
-                <div style={{flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+                <div style={{flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start'}}>
                   <div className="feed-header-info" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                     <div>
                       <h2 style={{margin: '0 0 0.5rem 0', fontSize: '2rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
