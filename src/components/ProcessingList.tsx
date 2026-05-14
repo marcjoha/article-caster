@@ -107,6 +107,12 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
     }
   };
 
+  const getStatusText = (ing: Ingestion) => {
+    if (ing.status === 'pending') return 'Pending...';
+    if (ing.status === 'processing') return ing.item_id ? 'Reprocessing episode...' : 'Processing...';
+    return ing.status;
+  };
+
   return (
     <div style={{ marginBottom: '3rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -154,7 +160,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', color: '#f59e0b', fontSize: '0.875rem', fontWeight: 600 }}>
                       <div className="spinner" style={{ width: '12px', height: '12px', border: '2px solid #f59e0b', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                      {ing.status === 'pending' ? 'Pending...' : (ing.item_id ? 'Reprocessing episode...' : 'Processing...')}
+                      {getStatusText(ing)}
                     </div>
                   )}
                 </td>

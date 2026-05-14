@@ -167,11 +167,11 @@ export interface Ingestion {
   id?: string;
   feed_id: string;
   url: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: string;
   error?: string;
-  created_at: Date;
   origin?: 'article' | 'rss';
   item_id?: string;
+  created_at?: FirebaseFirestore.Timestamp | Date;
 }
 
 export const createIngestion = async (ingestion: Omit<Ingestion, 'id' | 'created_at' | 'status'>) => {
@@ -202,7 +202,7 @@ export const getActiveIngestions = async (feedId: string): Promise<Ingestion[]> 
       const data = doc.data();
       return { id: doc.id, ...data, created_at: data.created_at.toDate() } as Ingestion;
     })
-    .filter(ing => ing.status === 'pending' || ing.status === 'processing' || ing.status === 'failed');
+    .filter(ing => ing.status !== 'completed');
 };
 
 export const getIngestionHistory = async (feedId: string): Promise<Ingestion[]> => {

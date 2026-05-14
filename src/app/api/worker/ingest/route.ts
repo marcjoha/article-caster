@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { extractArticleContent } from '@/lib/ingestion/article';
 import { synthesizeSpeech } from '@/lib/ingestion/tts';
+import { applyLoudnessNormalization } from '@/lib/audio';
 import { uploadFile, deleteFile } from '@/lib/storage';
 import { createFeedItem, updateFeedItem, getFeedItemById, updateIngestion, db, Feed } from '@/lib/firestore';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
 
   try {
     // Mark as processing
-    await updateIngestion(ingestionId, { status: 'processing' });
+    await updateIngestion(ingestionId, { status: '1/4: Extracting article...' });
 
     // Fetch the Feed to get its tts_voice configuration
     const feedSnapshot = await db.collection('feeds').doc(feedId).get();
@@ -31,10 +32,17 @@ export async function POST(request: Request) {
       textBlocks.unshift(`${feed.audio_prefix_message}\n\n`);
     }
 
-    const { audioBuffer, durationSeconds } = await synthesizeSpeech({ textBlocks, language, voicePreference });
+    await updateIngestion(ingestionId, { status: '2/4: Generating audio...' });
+
+    const { audioBuffer: rawAudioBuffer, durationSeconds } = await synthesizeSpeech({ textBlocks, language, voicePreference });
     
+    await updateIngestion(ingestionId, { status: '3/4: Mastering audio...' });
+    const masteredAudioBuffer = await applyLoudnessNormalization(rawAudioBuffer);
+    
+    await updateIngestion(ingestionId, { status: '4/4: Saving episode...' });
+
     const fileId = uuidv4();
-    const mediaUrl = await uploadFile(`article/${fileId}.wav`, audioBuffer, 'audio/wav');
+    const mediaUrl = await uploadFile(`article/${fileId}.wav`, masteredAudioBuffer, 'audio/wav');
     
     if (itemId) {
       const existingItem = await getFeedItemById(itemId);
@@ -44,7 +52,7 @@ export async function POST(request: Request) {
         title,
         description: textContent.substring(0, 200) + '...',
         media_url: mediaUrl,
-        size_bytes: audioBuffer.length,
+        size_bytes: masteredAudioBuffer.length,
         duration_seconds: durationSeconds,
       });
 
@@ -59,7 +67,7 @@ export async function POST(request: Request) {
         source_url: url,
         media_url: mediaUrl,
         type: 'audio',
-        size_bytes: audioBuffer.length,
+        size_bytes: masteredAudioBuffer.length,
         duration_seconds: durationSeconds,
         origin: origin || 'article', // Default to article if missing
       });

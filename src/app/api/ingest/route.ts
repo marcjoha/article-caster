@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     const activeIngestions = await getActiveIngestions(feedId);
-    if (activeIngestions.some(ing => ing.url === url && (ing.status === 'pending' || ing.status === 'processing'))) {
+    if (activeIngestions.some(ing => ing.url === url && ing.status !== 'failed')) {
       return NextResponse.json({ error: 'This article is already currently processing.' }, { status: 400 });
     }
     
