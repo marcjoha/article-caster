@@ -82,14 +82,22 @@ echo -e "${BLUE}ℹ Preparing standalone deployment...${NC}"
 mkdir -p .next/standalone/node_modules/@google-cloud/
 cp -r node_modules/@google-cloud/tasks .next/standalone/node_modules/@google-cloud/
 
-echo -e "${BLUE}ℹ Downloading static FFmpeg for Linux...${NC}"
+echo -e "${BLUE}ℹ Downloading static FFmpeg and yt-dlp for Linux...${NC}"
 mkdir -p .next/standalone/bin
 # Delete any existing binary to ensure ffbinaries downloads the linux version
 rm -f bin/ffmpeg
+rm -f bin/yt-dlp
 node scripts/download-ffmpeg.js linux
+node scripts/download-ytdlp.js linux
 cp bin/ffmpeg .next/standalone/bin/ffmpeg
-# Restore the macOS binary for local development
+cp bin/yt-dlp .next/standalone/bin/yt-dlp
+
+echo -e "${GREEN}✔ Linux binaries downloaded.${NC}"
+
+# Restore the macOS binaries for local development
+echo -e "${BLUE}ℹ Restoring macOS binaries for local dev...${NC}"
 node scripts/download-ffmpeg.js mac
+node scripts/download-ytdlp.js mac
 
 echo -e "${BLUE}ℹ Getting public URL for service...${NC}"
 PUBLIC_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --project="$PROJECT_ID" --format="value(status.url)" 2>/dev/null || echo "")

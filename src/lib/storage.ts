@@ -24,6 +24,46 @@ export const uploadFile = async (destinationPath: string, buffer: Buffer, conten
   return `https://storage.googleapis.com/${bucketName}/${destinationPath}`;
 };
 
+export const streamUpload = (destinationPath: string, contentType: string) => {
+  const file = bucket.file(destinationPath);
+  const writeStream = file.createWriteStream({
+    metadata: {
+      contentType,
+    },
+    resumable: false, // Stream direct to GCS for speed, disables resumable uploads
+  });
+
+  const uploadPromise = new Promise<string>((resolve, reject) => {
+    writeStream.on('finish', async () => {
+      try {
+        await file.makePublic();
+      } catch (e) {
+        console.log('Failed to make public, assuming bucket level uniform access or public by default', e);
+      }
+      resolve(`https://storage.googleapis.com/${bucketName}/${destinationPath}`);
+    });
+    writeStream.on('error', reject);
+  });
+
+  return { writeStream, uploadPromise };
+};
+
+export const getFileMetadata = async (publicUrl: string): Promise<{ size: number }> => {
+  const urlPrefix = `https://storage.googleapis.com/${bucketName}/`;
+  if (!publicUrl.startsWith(urlPrefix)) return { size: 0 };
+  
+  const destinationPath = publicUrl.substring(urlPrefix.length);
+  const file = bucket.file(destinationPath);
+  
+  try {
+    const [metadata] = await file.getMetadata();
+    return { size: parseInt(String(metadata.size), 10) || 0 };
+  } catch (e) {
+    console.error('Failed to get file metadata', e);
+    return { size: 0 };
+  }
+};
+
 export const deleteFile = async (publicUrl: string): Promise<void> => {
   try {
     const urlPrefix = `https://storage.googleapis.com/${bucketName}/`;

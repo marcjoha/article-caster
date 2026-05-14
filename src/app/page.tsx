@@ -119,8 +119,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                                 flexShrink: 0,
                                 display: 'flex',
                                 alignItems: 'center'
-                              }} title={item.origin === 'rss' ? 'RSS Ingestion' : 'Article Ingestion'}>
-                                {item.origin === 'rss' ? (
+                              }} title={item.origin === 'youtube' ? 'YouTube Ingestion' : item.origin === 'rss' ? 'RSS Ingestion' : 'Article Ingestion'}>
+                                {item.origin === 'youtube' ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z" />
+                                  </svg>
+                                ) : item.origin === 'rss' ? (
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
                                   </svg>

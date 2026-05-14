@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { formatDateTime } from '@/lib/utils';
+import ConfirmDialog from './ConfirmDialog';
 
 type Ingestion = {
   id: string;
@@ -11,11 +12,14 @@ type Ingestion = {
   error?: string;
   created_at: string;
   item_id?: string;
+  origin?: 'article' | 'rss' | 'youtube';
 };
 
 export default function ProcessingList({ feedId }: { feedId: string }) {
   const [ingestions, setIngestions] = useState<Ingestion[]>([]);
   const [isClearing, setIsClearing] = useState(false);
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [errorModalMessage, setErrorModalMessage] = useState<string | null>(null);
   const prevCountRef = useRef(0);
   const router = useRouter();
 
@@ -69,6 +73,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
       const res = await fetch(`/api/ingestions?feedId=${feedId}`, { method: 'DELETE' });
       if (res.ok) {
         setIngestions(prev => prev.filter(ing => ing.status !== 'failed'));
+        setIsClearModalOpen(false);
       }
     } catch (e) {
       console.error('Failed to clear ingestions', e);
@@ -88,13 +93,13 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
       // 2. Add it back to the queue
       const res = await fetch('/api/ingest', {
         method: 'POST',
-        body: JSON.stringify({ feedId, url: ing.url }),
+        body: JSON.stringify({ feedId, url: ing.url, origin: ing.origin }),
         headers: { 'Content-Type': 'application/json' },
       });
       
       if (!res.ok) {
         const errData = await res.json();
-        alert(`Failed to retry: ${errData.error || res.statusText}`);
+        setErrorModalMessage(`Failed to retry: ${errData.error || res.statusText}`);
       } else {
         // Remove from UI only on success to prevent vanishing
         setIngestions(prev => prev.filter(i => i.id !== ing.id));
@@ -103,7 +108,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
       router.refresh();
     } catch (e) {
       console.error('Failed to retry ingestion', e);
-      alert('Network error while retrying.');
+      setErrorModalMessage('Network error while retrying.');
     }
   };
 
@@ -120,12 +125,12 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {hasFailed && (
             <button 
-              onClick={handleClearFailed}
+              onClick={() => setIsClearModalOpen(true)}
               disabled={isClearing}
               className="btn btn-secondary"
               style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', height: 'auto', minHeight: 'unset' }}
             >
-              {isClearing ? 'Clearing...' : 'Clear failed'}
+              Clear failed
             </button>
           )}
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{ingestions.length} in progress</span>
@@ -169,6 +174,28 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
           </tbody>
         </table>
       </div>
+
+      {isClearModalOpen && (
+        <ConfirmDialog
+          title="Clear failed ingestions?"
+          message="This will remove all failed ingestions from the list. You will not be able to retry them once cleared."
+          confirmLabel="Clear"
+          onConfirm={handleClearFailed}
+          onCancel={() => setIsClearModalOpen(false)}
+          isLoading={isClearing}
+        />
+      )}
+
+      {errorModalMessage && (
+        <ConfirmDialog
+          title="Error"
+          message={errorModalMessage}
+          confirmLabel="OK"
+          onConfirm={() => setErrorModalMessage(null)}
+          onCancel={() => setErrorModalMessage(null)}
+          hideCancel={true}
+        />
+      )}
     </div>
   );
 }

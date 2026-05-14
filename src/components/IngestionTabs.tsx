@@ -6,10 +6,10 @@ import { formatDateTime } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function IngestionTabs({ feedId, syndications }: { feedId: string, syndications: Syndication[] }) {
-  const [activeTab, setActiveTab] = useState<'article' | 'rss'>('article');
+  const [activeTab, setActiveTab] = useState<'article' | 'youtube' | 'rss'>('article');
   const router = useRouter();
 
-  // Article form state
+  // Article/YouTube form state
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,6 +18,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
   const [syndicationToDelete, setSyndicationToDelete] = useState<string | null>(null);
   const [isDeletingRss, setIsDeletingRss] = useState(false);
   const [initialAction, setInitialAction] = useState('future');
+  const [errorModalMessage, setErrorModalMessage] = useState<string | null>(null);
 
   const handleIngestArticle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +26,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
     try {
       const res = await fetch('/api/ingest', {
         method: 'POST',
-        body: JSON.stringify({ feedId, url }),
+        body: JSON.stringify({ feedId, url, origin: activeTab }),
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) {
@@ -35,13 +36,13 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
         const errorText = await res.text();
         try {
           const errorData = JSON.parse(errorText);
-          alert(`Ingestion failed: ${errorData.error}`);
+          setErrorModalMessage(errorData.error);
         } catch {
-          alert(`Ingestion failed with status ${res.status}. Server response: ${errorText.substring(0, 100)}`);
+          setErrorModalMessage(`Status ${res.status}: ${errorText.substring(0, 100)}`);
         }
       }
     } catch (err: unknown) {
-      alert(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setErrorModalMessage(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
     setLoading(false);
   };
@@ -62,13 +63,13 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
         const errorText = await res.text();
         try {
           const errorData = JSON.parse(errorText);
-          alert(`Failed to subscribe: ${errorData.error}`);
+          setErrorModalMessage(`Failed to subscribe: ${errorData.error}`);
         } catch {
-          alert(`Failed to subscribe with status ${res.status}.`);
+          setErrorModalMessage(`Failed to subscribe with status ${res.status}.`);
         }
       }
     } catch (err: unknown) {
-      alert(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setErrorModalMessage(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
     setRssLoading(false);
   };
@@ -84,19 +85,25 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
         setSyndicationToDelete(null);
         router.refresh();
       } else {
-        alert('Failed to remove subscription');
+        setErrorModalMessage('Failed to remove subscription');
       }
     } catch {
-      alert('Network error while removing subscription');
+      setErrorModalMessage('Network error while removing subscription');
     }
     setIsDeletingRss(false);
+  };
+
+  const handleTabChange = (tab: 'article' | 'youtube' | 'rss') => {
+    setActiveTab(tab);
+    setUrl('');
+    setRssUrl('');
   };
 
   return (
     <div className="card" style={{padding: '1.5rem', width: '100%', maxWidth: '100%'}}>
       <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #334155', marginBottom: '1.5rem' }}>
         <button
-          onClick={() => setActiveTab('article')}
+          onClick={() => handleTabChange('article')}
           style={{
             background: 'none',
             border: 'none',
@@ -117,7 +124,29 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
           Article
         </button>
         <button
-          onClick={() => setActiveTab('rss')}
+          onClick={() => handleTabChange('youtube')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            color: activeTab === 'youtube' ? '#fff' : '#94a3b8',
+            borderBottom: activeTab === 'youtube' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            fontWeight: activeTab === 'youtube' ? 600 : 400,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1.2rem', height: '1.2rem' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
+          </svg>
+          YouTube
+        </button>
+        <button
+          onClick={() => handleTabChange('rss')}
           style={{
             background: 'none',
             border: 'none',
@@ -139,11 +168,11 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
         </button>
       </div>
 
-      {activeTab === 'article' ? (
+      {activeTab === 'article' || activeTab === 'youtube' ? (
         <form onSubmit={handleIngestArticle}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <input type="url" className="input-field" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/article" required style={{ marginBottom: 0 }} />
+              <input type="url" className="input-field" value={url} onChange={e => setUrl(e.target.value)} placeholder={activeTab === 'youtube' ? "https://youtube.com/watch?v=..." : "https://example.com/article"} required style={{ marginBottom: 0 }} />
               <button type="submit" className="btn" disabled={loading} style={{ whiteSpace: 'nowrap' }}>
                 {loading ? 'Processing...' : 'Add'}
               </button>
@@ -223,6 +252,17 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
           onConfirm={handleDeleteRss}
           onCancel={() => setSyndicationToDelete(null)}
           isLoading={isDeletingRss}
+        />
+      )}
+
+      {errorModalMessage && (
+        <ConfirmDialog
+          title="Error"
+          message={errorModalMessage}
+          confirmLabel="OK"
+          onConfirm={() => setErrorModalMessage(null)}
+          onCancel={() => setErrorModalMessage(null)}
+          hideCancel={true}
         />
       )}
     </div>

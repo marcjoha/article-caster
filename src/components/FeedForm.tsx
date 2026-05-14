@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ConfirmDialog from './ConfirmDialog';
 
 interface FeedFormProps {
   initialData?: {
@@ -33,6 +34,7 @@ export default function FeedForm({
   const [loading, setLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [errorModalMessage, setErrorModalMessage] = useState<string | null>(null);
   const router = useRouter();
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -47,7 +49,7 @@ export default function FeedForm({
     audioRef.current.onerror = () => {
       setPreviewLoading(false);
       setIsPlaying(false);
-      alert('Failed to play preview');
+      setErrorModalMessage('Failed to play preview');
     };
     audioRef.current.onplaying = () => {
       setPreviewLoading(false);
@@ -70,7 +72,7 @@ export default function FeedForm({
       console.error('Playback error:', err);
       setPreviewLoading(false);
       setIsPlaying(false);
-      alert('Failed to play preview');
+      setErrorModalMessage('Failed to play preview');
     });
   };
 
@@ -116,7 +118,7 @@ export default function FeedForm({
       }
       handleClose();
     } else {
-      alert(`Failed to ${initialData ? 'update' : 'create'} podcast`);
+      setErrorModalMessage(`Failed to ${initialData ? 'update' : 'create'} podcast`);
     }
     setLoading(false);
   };
@@ -233,6 +235,17 @@ export default function FeedForm({
             </form>
           </div>
         </div>
+      )}
+
+      {errorModalMessage && (
+        <ConfirmDialog
+          title="Error"
+          message={errorModalMessage}
+          confirmLabel="OK"
+          onConfirm={() => setErrorModalMessage(null)}
+          onCancel={() => setErrorModalMessage(null)}
+          hideCancel={true}
+        />
       )}
     </>
   );

@@ -7,6 +7,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   isLoading?: boolean;
+  hideCancel?: boolean;
 }
 
 export default function ConfirmDialog({
@@ -16,6 +17,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
   isLoading = false,
+  hideCancel = false,
 }: ConfirmDialogProps) {
   return (
     <div style={{
@@ -27,14 +29,16 @@ export default function ConfirmDialog({
         <h2 style={{ marginTop: 0, color: '#ef4444' }}>{title}</h2>
         <p style={{ marginBottom: '2rem', lineHeight: 1.5 }}>{message}</p>
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-          <button
-            onClick={onCancel}
-            className="btn"
-            style={{ backgroundColor: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-secondary)' }}
-            disabled={isLoading}
-          >
-            Cancel
-          </button>
+          {!hideCancel && (
+            <button
+              onClick={onCancel}
+              className="btn"
+              style={{ backgroundColor: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-secondary)' }}
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+          )}
           <button
             onClick={onConfirm}
             className="btn"

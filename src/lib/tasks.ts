@@ -4,7 +4,7 @@ interface IngestionPayload {
   ingestionId: string;
   feedId: string;
   url: string;
-  origin: 'article' | 'rss';
+  origin: 'article' | 'rss' | 'youtube';
   itemId?: string;
 }
 

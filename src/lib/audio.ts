@@ -6,38 +6,83 @@ import path from 'path';
 const customFfmpegPath = path.join(process.cwd(), 'bin', 'ffmpeg');
 ffmpeg.setFfmpegPath(customFfmpegPath);
 
-import { execFile } from 'child_process';
-import util from 'util';
+import { spawn } from 'child_process';
+import { Writable } from 'stream';
 
-const execFileAsync = util.promisify(execFile);
-
-export async function applyLoudnessNormalization(inputBuffer: Buffer): Promise<Buffer> {
+export async function applyLoudnessNormalization(input: Buffer | string | (Buffer | string)[], outputFormat: 'wav' | 'mp3', outputStream: Writable): Promise<void> {
   const tmpDir = os.tmpdir();
-  const inputPath = path.join(tmpDir, `input-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`);
-  const outputPath = path.join(tmpDir, `output-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`);
+  const inputs = Array.isArray(input) ? input : [input];
+  const inputPaths: string[] = [];
+  const createdFiles: string[] = [];
 
-  fs.writeFileSync(inputPath, inputBuffer);
-
-  try {
-    const { stdout, stderr } = await execFileAsync(customFfmpegPath, [
-      '-y',
-      '-i', inputPath,
-      '-af', 'loudnorm=I=-19:LRA=4:TP=-1.0',
-      '-f', 'wav',
-      outputPath
-    ], { maxBuffer: 10 * 1024 * 1024 });
-    
-    const outputBuffer = fs.readFileSync(outputPath);
-    return outputBuffer;
-  } catch (err: any) {
-    console.error('FFmpeg Native Error:', err);
-    console.error('FFmpeg Native Stderr:', err.stderr);
-    console.error('FFmpeg Native Stdout:', err.stdout);
-    throw new Error(`FFmpeg error: ${err.message}. Stderr: ${err.stderr}`);
-  } finally {
-    if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-    if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+  for (let i = 0; i < inputs.length; i++) {
+    const item = inputs[i];
+    if (typeof item === 'string') {
+      inputPaths.push(item);
+    } else {
+      const p = path.join(tmpDir, `input-${Date.now()}-${i}-${Math.random().toString(36).substring(7)}.wav`);
+      fs.writeFileSync(p, item);
+      inputPaths.push(p);
+      createdFiles.push(p);
+    }
   }
+
+  const args = ['-y'];
+  inputPaths.forEach(p => {
+    args.push('-i', p);
+  });
+
+  if (inputPaths.length > 1) {
+    const filters: string[] = [];
+    const concatLabels: string[] = [];
+    
+    inputPaths.forEach((_, idx) => {
+      // Force all inputs to 44.1kHz stereo to prevent concat mismatch errors
+      filters.push(`[${idx}:a]aresample=44100,aformat=sample_fmts=s16:channel_layouts=stereo[a${idx}]`);
+      concatLabels.push(`[a${idx}]`);
+    });
+    
+    filters.push(`${concatLabels.join('')}concat=n=${inputPaths.length}:v=0:a=1[outa]`);
+    filters.push(`[outa]loudnorm=I=-19:LRA=4:TP=-1.0[final]`);
+    
+    args.push('-filter_complex', filters.join(';'), '-map', '[final]');
+  } else {
+    args.push('-af', 'loudnorm=I=-19:LRA=4:TP=-1.0');
+  }
+
+  args.push('-f', outputFormat, 'pipe:1');
+
+  return new Promise((resolve, reject) => {
+    const ffmpegProcess = spawn(customFfmpegPath, args);
+
+    ffmpegProcess.stdout.pipe(outputStream);
+
+    let stderrOutput = '';
+    ffmpegProcess.stderr.on('data', (data) => {
+      stderrOutput += data.toString();
+    });
+
+    ffmpegProcess.on('close', (code) => {
+      createdFiles.forEach(p => {
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      });
+
+      if (code === 0) {
+        resolve();
+      } else {
+        console.error('FFmpeg Native Error code:', code);
+        console.error('FFmpeg Native Stderr:', stderrOutput);
+        reject(new Error(`FFmpeg error: process exited with code ${code}. Stderr: ${stderrOutput}`));
+      }
+    });
+
+    ffmpegProcess.on('error', (err) => {
+      createdFiles.forEach(p => {
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      });
+      reject(err);
+    });
+  });
 }
 
 /**

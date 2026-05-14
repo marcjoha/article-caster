@@ -35,7 +35,7 @@ export interface FeedItem {
   size_bytes: number;
   duration_seconds: number;
   created_at: Date;
-  origin?: 'article' | 'rss';
+  origin?: 'article' | 'rss' | 'youtube';
 }
 
 export const createFeed = async (feed: Omit<Feed, 'id' | 'created_at'>) => {
@@ -169,7 +169,7 @@ export interface Ingestion {
   url: string;
   status: string;
   error?: string;
-  origin?: 'article' | 'rss';
+  origin?: 'article' | 'rss' | 'youtube';
   item_id?: string;
   created_at?: FirebaseFirestore.Timestamp | Date;
 }

@@ -4,31 +4,37 @@ import { enqueueIngestion } from '@/lib/tasks';
 
 export async function POST(request: Request) {
   try {
-    const { feedId, url } = await request.json();
+    const body = await request.json();
+    const { feedId, url } = body;
+    let { origin = 'article' } = body;
     
+    if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+      origin = 'youtube';
+    }
+
     // Deduplication check
     const existingItems = await getFeedItems(feedId);
     if (existingItems.some(item => item.source_url === url)) {
-      return NextResponse.json({ error: 'This article already exists in your podcast feed.' }, { status: 400 });
+      return NextResponse.json({ error: 'This item already exists in your podcast feed.' }, { status: 400 });
     }
 
     const activeIngestions = await getActiveIngestions(feedId);
     if (activeIngestions.some(ing => ing.url === url && ing.status !== 'failed')) {
-      return NextResponse.json({ error: 'This article is already currently processing.' }, { status: 400 });
+      return NextResponse.json({ error: 'This item is already currently processing.' }, { status: 400 });
     }
     
     // Create pending ingestion record
     const ingestion = await createIngestion({
       feed_id: feedId,
       url,
-      origin: 'article',
+      origin: origin,
     });
 
     await enqueueIngestion({
       ingestionId: ingestion.id!,
       feedId,
       url,
-      origin: 'article',
+      origin: origin,
     });
 
     return NextResponse.json({ success: true, ingestionId: ingestion.id });

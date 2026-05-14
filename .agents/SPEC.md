@@ -20,6 +20,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
    - Whenever modifications are made to the podcast feed generation logic, the resulting feeds must be strictly validated against the latest Apple Podcasts or RSS feed standards.
 3. **Content Ingestion**:
    - **Articles**: The admin can submit an article URL. The system offloads the processing to a Google Cloud Tasks background worker, which extracts the main text content, removes ads and boilerplate using a Gemini LLM, and uses a Text-to-Speech (TTS) service to generate an audio file.
+   - **YouTube Videos**: The admin can submit a YouTube URL. The worker extracts the video audio using yt-dlp, prepends the standardized intro message using TTS, and streams the MP3 data natively via FFmpeg to prevent memory overload.
    - **RSS Syndication**: The admin can add RSS syndications to automatically ingest blog posts. A scheduled cron job (via Cloud Scheduler) periodically syncs new items.
 4. **Content Management**:
    - Ingested items are added to a specific feed.
@@ -34,8 +35,8 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 ## Data Model
 
 *   **Feeds**: `id`, `title`, `description`, `author`, `category` (optional), `cover_image_url`, `tts_voice`, `audio_prefix_message`, `unguessable_slug`, `created_at`
-*   **Items**: `id`, `feed_id`, `title`, `description`, `source_url`, `media_url` (Cloud Storage path), `type` (audio), `size_bytes`, `duration_seconds`, `origin` (article | rss), `created_at`
-*   **Ingestions**: `id`, `feed_id`, `url`, `status`, `error`, `origin` (article | rss), `created_at`
+*   **Items**: `id`, `feed_id`, `title`, `description`, `source_url`, `media_url` (Cloud Storage path), `type` (audio), `size_bytes`, `duration_seconds`, `origin` (article | youtube | rss), `created_at`
+*   **Ingestions**: `id`, `feed_id`, `url`, `status`, `error`, `origin` (article | youtube | rss), `created_at`
 *   **Syndications**: `id`, `feed_id`, `url`, `title`, `last_checked_at`, `created_at`
 *   **Listens**: `id`, `item_id`, `feed_id`, `user_agent`, `ip_hash`, `created_at`
 
