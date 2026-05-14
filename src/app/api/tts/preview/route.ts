@@ -40,6 +40,7 @@ export async function GET(request: Request) {
       model: 'gemini-3.1-flash-tts-preview',
       contents: `Hello there! This is a preview of my voice.`,
       config: {
+        responseModalities: ["AUDIO"],
         safetySettings: [
           { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
           { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },

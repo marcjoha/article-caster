@@ -42,6 +42,62 @@ function getWavHeader(dataLength: number, sampleRate: number = 24000, numChannel
   return header;
 }
 
+function crossfadeBuffers(buffers: Buffer[], overlapSamples: number = 1200): Buffer {
+  const validBuffers = buffers.filter(b => b && b.length > 0);
+  if (validBuffers.length === 0) return Buffer.alloc(0);
+  if (validBuffers.length === 1) return validBuffers[0];
+
+  let overlapBytes = overlapSamples * 2;
+  for (const buf of validBuffers) {
+    if (buf.length < overlapBytes * 2) {
+      overlapBytes = Math.floor(buf.length / 4) * 2;
+    }
+  }
+  const actualOverlapSamples = overlapBytes / 2;
+
+  const totalLength = validBuffers.reduce((sum, buf) => sum + buf.length, 0) - (overlapBytes * (validBuffers.length - 1));
+  const result = Buffer.alloc(totalLength);
+  
+  let currentOffset = 0;
+  
+  for (let i = 0; i < validBuffers.length; i++) {
+    const currentBuf = validBuffers[i];
+    
+    if (i === 0) {
+      const bytesToCopy = currentBuf.length - overlapBytes;
+      currentBuf.copy(result, currentOffset, 0, bytesToCopy);
+      currentOffset += bytesToCopy;
+    } else {
+      const prevBuf = validBuffers[i - 1];
+      const prevOverlapStart = prevBuf.length - overlapBytes;
+      
+      if (actualOverlapSamples > 0) {
+        for (let j = 0; j < actualOverlapSamples; j++) {
+          const prevSample = prevBuf.readInt16LE(prevOverlapStart + j * 2);
+          const currSample = currentBuf.readInt16LE(j * 2);
+          const fadeRatio = j / actualOverlapSamples;
+          const fadedSample = Math.round((prevSample * (1 - fadeRatio)) + (currSample * fadeRatio));
+          const clampedSample = Math.max(-32768, Math.min(32767, fadedSample));
+          result.writeInt16LE(clampedSample, currentOffset);
+          currentOffset += 2;
+        }
+      }
+      
+      if (i < validBuffers.length - 1) {
+        const bytesToCopy = currentBuf.length - (overlapBytes * 2);
+        currentBuf.copy(result, currentOffset, overlapBytes, currentBuf.length - overlapBytes);
+        currentOffset += bytesToCopy;
+      } else {
+        const bytesToCopy = currentBuf.length - overlapBytes;
+        currentBuf.copy(result, currentOffset, overlapBytes);
+        currentOffset += bytesToCopy;
+      }
+    }
+  }
+  
+  return result;
+}
+
 export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<SynthesizeResult> => {
   const voiceName = resolveVoice(options.voicePreference);
   
@@ -49,7 +105,7 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
   let currentChunk = '';
   
   for (const block of options.textBlocks) {
-    if (currentChunk.length + block.length > 1200) {
+    if (currentChunk.length + block.length > 300) {
       if (currentChunk.trim()) {
         chunks.push(currentChunk);
       }
@@ -80,6 +136,7 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
           model: 'gemini-3.1-flash-tts-preview',
           contents: `Say the following text clearly and naturally for a podcast summary: ${chunk}`,
           config: {
+            responseModalities: ["AUDIO"],
             safetySettings: [
               { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
               { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -123,7 +180,7 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
     }
   }
 
-  const combinedPcm = Buffer.concat(audioBuffers);
+  const combinedPcm = crossfadeBuffers(audioBuffers, 1200); // 50ms overlap at 24kHz
   const durationSeconds = Math.round(combinedPcm.length / 48000); // 24000Hz * 1 channel * 2 bytes/sample = 48000 bytes/sec
 
   const header = getWavHeader(combinedPcm.length, 24000);
