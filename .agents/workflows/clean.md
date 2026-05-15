@@ -60,7 +60,15 @@ npx tsc --noEmit
 
 Fix any errors reported.
 
-## 8. Documentation Sync
+## 8. Apply Agent Skills & Best Practices
+
+Leverage your available Agent Skills to actively improve code quality and avoid common pitfalls.
+
+- **Refactoring**: Proactively refactor code that deviates from established framework-specific best practices (e.g., React, Next.js, TypeScript).
+- **Code Optimization**: Look for opportunities to eliminate duplication, extract shared utilities, and apply idiomatic conventions.
+- **Architectural Consistency**: Ensure that UI patterns and state management are consistent across the codebase.
+
+## 9. Documentation Sync
 
 Per `RULES.md`, both `SPEC.md` and `README.md` must stay current with the codebase.
 
@@ -69,7 +77,7 @@ Per `RULES.md`, both `SPEC.md` and `README.md` must stay current with the codeba
 - Ensure the GCP topology image in `README.md` reflects what is currently deployed.
 - If `SPEC.md` has drifted from the implementation, flag the discrepancy to the user before modifying it.
 
-## 9. Build Verification
+## 10. Build Verification
 
 Run a production build to confirm nothing was broken during cleanup.
 // turbo
@@ -79,10 +87,11 @@ npm run build
 
 If the build fails, fix the issue before proceeding.
 
-## 10. Summary Report
+## 11. Summary Report
 
 After all cleanup steps are complete, provide a concise summary:
 - **Files deleted** — list each file removed and why.
 - **Dependencies removed** — list uninstalled packages.
 - **Files modified** — list files formatted or updated.
+- **Refactoring applied** — list where Agent Skills were used to improve code quality.
 - **Build status** — confirm the build passed.

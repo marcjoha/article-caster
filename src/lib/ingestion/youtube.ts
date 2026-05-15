@@ -18,8 +18,7 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
   const ytdlpArgs = [
     '--dump-json',
     '--no-playlist',
-    '--js-runtimes', 'node',
-    '--extractor-args', 'youtube:player_client=android,web'
+    '--js-runtimes', 'node'
   ];
   
   if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
@@ -44,8 +43,7 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
     '-f', 'bestaudio', // Download best audio format
     '-o', outputPath,
     '--no-playlist',
-    '--js-runtimes', 'node',
-    '--extractor-args', 'youtube:player_client=android,web'
+    '--js-runtimes', 'node'
   ];
 
   if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
