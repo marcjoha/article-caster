@@ -128,7 +128,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
             if (process.env.NODE_ENV !== 'development') return;
             handleTabChange('youtube');
           }}
-          title={process.env.NODE_ENV !== 'development' ? 'YouTube ingestion is disabled in production due to datacenter IP blocking. Use local development.' : ''}
+          title={process.env.NODE_ENV !== 'development' ? 'Deploy article-caster on a local machine to enable YouTube ingestion (datacenter IPs are blocked)' : ''}
           style={{
             background: 'none',
             border: 'none',
