@@ -124,19 +124,24 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
           Article
         </button>
         <button
-          onClick={() => handleTabChange('youtube')}
+          onClick={() => {
+            if (process.env.NODE_ENV !== 'development') return;
+            handleTabChange('youtube');
+          }}
+          title={process.env.NODE_ENV !== 'development' ? 'YouTube ingestion is disabled in production due to datacenter IP blocking. Use local development.' : ''}
           style={{
             background: 'none',
             border: 'none',
             padding: '0.5rem 1rem',
-            color: activeTab === 'youtube' ? '#fff' : '#94a3b8',
+            color: activeTab === 'youtube' ? '#fff' : (process.env.NODE_ENV !== 'development' ? '#475569' : '#94a3b8'),
             borderBottom: activeTab === 'youtube' ? '2px solid #3b82f6' : '2px solid transparent',
-            cursor: 'pointer',
+            cursor: process.env.NODE_ENV !== 'development' ? 'not-allowed' : 'pointer',
             fontSize: '1rem',
             fontWeight: activeTab === 'youtube' ? 600 : 400,
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
+            opacity: process.env.NODE_ENV !== 'development' ? 0.5 : 1,
           }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1.2rem', height: '1.2rem' }}>

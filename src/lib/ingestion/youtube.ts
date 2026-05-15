@@ -2,6 +2,7 @@ import { execFile } from 'child_process';
 import util from 'util';
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
 
 const execFileAsync = util.promisify(execFile);
 const customYtDlpPath = path.join(process.cwd(), 'bin', 'yt-dlp');

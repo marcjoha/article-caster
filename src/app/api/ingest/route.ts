@@ -12,6 +12,11 @@ export async function POST(request: Request) {
       origin = 'youtube';
     }
 
+    // Restrict YouTube ingestion to local development
+    if (origin === 'youtube' && process.env.NODE_ENV !== 'development') {
+      return NextResponse.json({ error: 'YouTube ingestion is restricted to local development environments only due to datacenter IP blocking.' }, { status: 403 });
+    }
+
     // Deduplication check
     const existingItems = await getFeedItems(feedId);
     if (existingItems.some(item => item.source_url === url)) {
