@@ -6,6 +6,7 @@ A personal podcast feed generator that converts web articles into spoken-word au
 ## Features
 
 - **Article-to-Audio Ingestion** — Paste any article URL to extract, clean (with LLM-based boilerplate removal), and convert it into a high-fidelity WAV podcast episode (processed asynchronously via Cloud Tasks).
+- **YouTube Video Ingestion** — Paste any YouTube URL to extract the audio and add it to your podcast feed (requires local development environment due to datacenter IP blocking).
 - **Audio Mastering** — Applies EBU R128 loudness normalization and True Peak limiting via FFmpeg to ensure broadcast-quality audio.
 - **RSS Syndication** — Subscribe your custom feeds to external RSS sources to automatically ingest new blog posts on a daily schedule.
 - **Podcast Feed Management** — Create and manage multiple podcast feeds, each with its own title, description, author, cover image, TTS voice, and custom audio prefix message.
