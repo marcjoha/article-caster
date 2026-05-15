@@ -6,7 +6,6 @@ import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay, ReprocessItemButton
 import IngestionTabs from '@/components/IngestionTabs';
 import FeedSelector from '@/components/FeedSelector';
 import ProcessingList from '@/components/ProcessingList';
-import FeedStats from '@/components/FeedStats';
 
 import { formatDateTime } from '@/lib/utils';
 
@@ -83,7 +82,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               </div>
 
               <div style={{marginTop: '0', marginBottom: '3rem'}}>
-                <FeedStats feedId={selectedFeed.id!} />
                 <IngestionTabs feedId={selectedFeed.id!} syndications={syndications} />
               </div>
 
