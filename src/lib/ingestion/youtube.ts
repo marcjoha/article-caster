@@ -14,14 +14,21 @@ export interface YoutubeExtractionResult {
 }
 
 export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractionResult> {
-  // 1. Fetch metadata
-  const { stdout: metadataJson } = await execFileAsync(customYtDlpPath, [
+  const ytdlpArgs = [
     '--dump-json',
     '--no-playlist',
     '--js-runtimes', 'node',
-    '--extractor-args', 'youtube:player_client=ios',
-    url
-  ], { maxBuffer: 10 * 1024 * 1024 });
+    '--extractor-args', 'youtube:player_client=android,web'
+  ];
+  
+  if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
+    ytdlpArgs.push('--cookies', path.join(process.cwd(), 'cookies.txt'));
+  }
+  
+  ytdlpArgs.push(url);
+
+  // 1. Fetch metadata
+  const { stdout: metadataJson } = await execFileAsync(customYtDlpPath, ytdlpArgs, { maxBuffer: 10 * 1024 * 1024 });
 
   const metadata = JSON.parse(metadataJson);
   const title = metadata.title || 'Unknown YouTube Video';
@@ -32,14 +39,21 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
   const tmpDir = os.tmpdir();
   const outputPath = path.join(tmpDir, `yt-${Date.now()}-${Math.random().toString(36).substring(7)}.webm`);
 
-  await execFileAsync(customYtDlpPath, [
+  const downloadArgs = [
     '-f', 'bestaudio', // Download best audio format
     '-o', outputPath,
     '--no-playlist',
     '--js-runtimes', 'node',
-    '--extractor-args', 'youtube:player_client=ios',
-    url
-  ], { maxBuffer: 10 * 1024 * 1024 });
+    '--extractor-args', 'youtube:player_client=android,web'
+  ];
+
+  if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
+    downloadArgs.push('--cookies', path.join(process.cwd(), 'cookies.txt'));
+  }
+  
+  downloadArgs.push(url);
+
+  await execFileAsync(customYtDlpPath, downloadArgs, { maxBuffer: 10 * 1024 * 1024 });
 
   return {
     title,
