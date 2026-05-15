@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getActiveIngestions, clearFailedIngestions, deleteIngestion } from '@/lib/firestore';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const feedId = searchParams.get('feedId');

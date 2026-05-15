@@ -85,12 +85,9 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
   const handleTryAgain = async (ing: Ingestion) => {
     // We shouldn't optimistically remove it until we know it succeeded, or at least show an error.
     try {
-      // 1. Delete the old failed ingestion
-      if (ing.id) {
-        await fetch(`/api/ingestions?ingestionId=${ing.id}`, { method: 'DELETE' });
-      }
+
       
-      // 2. Add it back to the queue
+      // 1. Add it back to the queue FIRST
       const res = await fetch('/api/ingest', {
         method: 'POST',
         body: JSON.stringify({ feedId, url: ing.url, origin: ing.origin }),
@@ -101,7 +98,11 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
         const errData = await res.json();
         setErrorModalMessage(`Failed to retry: ${errData.error || res.statusText}`);
       } else {
-        // Remove from UI only on success to prevent vanishing
+        // 2. Only delete the old failed ingestion record on success
+        if (ing.id) {
+          await fetch(`/api/ingestions?ingestionId=${ing.id}`, { method: 'DELETE' });
+        }
+        // Remove from UI to prevent vanishing before next poll
         setIngestions(prev => prev.filter(i => i.id !== ing.id));
       }
       
