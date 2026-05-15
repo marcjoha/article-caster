@@ -124,6 +124,27 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
           Article
         </button>
         <button
+          onClick={() => handleTabChange('rss')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            color: activeTab === 'rss' ? '#fff' : '#94a3b8',
+            borderBottom: activeTab === 'rss' ? '2px solid #3b82f6' : '2px solid transparent',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            fontWeight: activeTab === 'rss' ? 600 : 400,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1.2rem', height: '1.2rem' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+          </svg>
+          RSS Feeds
+        </button>
+        <button
           onClick={() => {
             if (process.env.NODE_ENV !== 'development') return;
             handleTabChange('youtube');
@@ -149,27 +170,6 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
           </svg>
           YouTube
-        </button>
-        <button
-          onClick={() => handleTabChange('rss')}
-          style={{
-            background: 'none',
-            border: 'none',
-            padding: '0.5rem 1rem',
-            color: activeTab === 'rss' ? '#fff' : '#94a3b8',
-            borderBottom: activeTab === 'rss' ? '2px solid #3b82f6' : '2px solid transparent',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            fontWeight: activeTab === 'rss' ? 600 : 400,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1.2rem', height: '1.2rem' }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-          </svg>
-          RSS Feeds
         </button>
       </div>
 
