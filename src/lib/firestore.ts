@@ -112,12 +112,12 @@ export const getFeedBySlug = async (slug: string): Promise<Feed | null> => {
   return { ...data, created_at: data.created_at.toDate() } as Feed;
 };
 
-export const createFeedItem = async (item: Omit<FeedItem, 'id' | 'created_at'>) => {
+export const createFeedItem = async (item: Omit<FeedItem, 'id' | 'created_at'> & { created_at?: Date }) => {
   const docRef = db.collection('items').doc();
   const data: FeedItem = {
     ...item,
     id: docRef.id,
-    created_at: new Date(),
+    created_at: item.created_at || new Date(),
   };
   await docRef.set(data);
   return data;

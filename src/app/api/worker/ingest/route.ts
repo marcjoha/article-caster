@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 
 export async function POST(request: Request) {
-  const { ingestionId, feedId, url, origin, itemId } = await request.json();
+  const { ingestionId, feedId, url, origin, itemId, published_at } = await request.json();
 
   if (!ingestionId || !feedId || !url) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -125,6 +125,7 @@ export async function POST(request: Request) {
         size_bytes: sizeBytes,
         duration_seconds: durationSeconds,
         origin: origin || 'article', // Default to article if missing
+        created_at: published_at ? new Date(published_at) : new Date(),
       });
     }
 

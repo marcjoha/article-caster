@@ -25,18 +25,12 @@ export async function GET() {
 
         // Process up to 5 newest items
         const itemsToCheck = feed.items.slice(0, 5);
+        const now = Date.now();
 
-        for (const item of itemsToCheck) {
+        for (let i = 0; i < itemsToCheck.length; i++) {
+          const item = itemsToCheck[i];
           const itemUrl = item.link;
           if (!itemUrl) continue;
-
-          // Skip items that were published before we subscribed to the feed
-          if (syn.created_at && item.isoDate) {
-            const pubDate = new Date(item.isoDate);
-            if (pubDate < syn.created_at) {
-              continue;
-            }
-          }
 
           // If it's not already an item and has never been ingested
           if (!existingUrls.has(itemUrl) && !historyUrls.has(itemUrl)) {
@@ -46,11 +40,19 @@ export async function GET() {
               origin: 'rss',
             });
 
+            // Artificial timestamp: now minus `i` seconds.
+            // i=0 (newest in RSS) gets the newest timestamp (now)
+            // i=4 (oldest in RSS batch) gets now - 4s
+            // This guarantees they sit at the top of the podcast feed as "new" episodes, 
+            // but are chronologically ordered amongst themselves.
+            const artificialDate = new Date(now - i * 1000).toISOString();
+
             await enqueueIngestion({
               ingestionId: ingestion.id!,
               feedId: syn.feed_id,
               url: itemUrl,
               origin: 'rss',
+              published_at: artificialDate,
             });
 
             totalAdded++;
