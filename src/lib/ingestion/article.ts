@@ -11,6 +11,62 @@ const ai = new GoogleGenAI({
   location: 'europe-west1'
 });
 
+/** Minimum character count for extracted content to be considered a real article. */
+const MIN_ARTICLE_LENGTH = 200;
+
+/**
+ * Uses a fast Gemini call to classify whether extracted text is genuine article
+ * content or site chrome (login walls, paywalls, cookie banners, error pages, etc.).
+ * Fails open: if the LLM call itself errors, content passes through.
+ */
+async function validateExtractedContent(text: string): Promise<{ isArticle: boolean; reason: string }> {
+  const sample = text.substring(0, 2000);
+
+  try {
+    const prompt = `You are a content quality gate for a podcast ingestion pipeline.
+Analyze the following extracted text and determine if it is genuine article/blog content
+that would be suitable for text-to-speech podcast generation.
+
+REJECT (isArticle: false) if the text is any of:
+- A login page, sign-in form, or authentication prompt
+- A paywall or subscription gate
+- A cookie consent or privacy notice page
+- A site navigation menu, footer, or sidebar with no article body
+- An error page, "page not found", or HTTP error message
+- A CAPTCHA or bot-detection challenge
+- Mostly boilerplate (terms of service, ads, trending topics lists)
+
+ACCEPT (isArticle: true) if the text contains substantive article, blog, essay, or
+informational content with a coherent narrative or structure.
+
+Respond with ONLY valid JSON (no markdown code fences): {"isArticle": boolean, "reason": "brief explanation"}
+
+Text to evaluate:
+${sample}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+        ]
+      }
+    });
+
+    const raw = response.text?.trim().replace(/^```json\n?/i, '').replace(/\n?```$/i, '') || '';
+    const verdict = JSON.parse(raw) as { isArticle: boolean; reason: string };
+    return verdict;
+  } catch (error) {
+    // Fail open: if the quality gate itself errors, let content through
+    // so a Gemini outage doesn't break all ingestion.
+    console.warn('Content quality gate failed, passing content through:', error);
+    return { isArticle: true, reason: 'Quality gate skipped due to error' };
+  }
+}
 
 export const extractArticleContent = async (url: string): Promise<{ title: string; textContent: string; textBlocks: string[]; language: string }> => {
   let response = await fetch(url, { 
@@ -44,6 +100,22 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
   
   if (!article || !article.textContent) {
     throw new Error('Failed to extract article content.');
+  }
+
+  // Content quality gate: reject non-article content before it reaches
+  // TTS and podcast subscribers (login walls, paywalls, error pages, etc.)
+  const rawText = article.textContent.trim();
+
+  if (rawText.length < MIN_ARTICLE_LENGTH) {
+    throw new Error(
+      `Extracted content too short (${rawText.length} chars). ` +
+      'The page may require authentication or contain no article content.'
+    );
+  }
+
+  const verdict = await validateExtractedContent(rawText);
+  if (!verdict.isArticle) {
+    throw new Error(`Content quality check failed: ${verdict.reason}`);
   }
 
   let cleanedHtml = article.content || '';
