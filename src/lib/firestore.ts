@@ -55,47 +55,48 @@ export const updateFeed = async (feedId: string, updates: Partial<Omit<Feed, 'id
 };
 
 export const deleteFeed = async (feedId: string) => {
-  // Fetch the feed first to get cover_image_url
-  const feedDoc = await db.collection('feeds').doc(feedId).get();
-  if (feedDoc.exists) {
-    const feedData = feedDoc.data() as Feed;
-    if (feedData.cover_image_url) {
-      await deleteFile(feedData.cover_image_url);
-    }
-  }
-
-  // Delete the feed
-  await db.collection('feeds').doc(feedId).delete();
-  
   const batch = db.batch();
   const deleteFilePromises: Promise<void>[] = [];
 
-  // Also delete all items associated with this feed
+  // 1. Cascade: delete all child items and their GCS audio files
   const itemsSnapshot = await db.collection('items').where('feed_id', '==', feedId).get();
   itemsSnapshot.docs.forEach(doc => {
     const itemData = doc.data() as FeedItem;
     if (itemData.media_url) {
-      deleteFilePromises.push(deleteFile(itemData.media_url));
+      deleteFilePromises.push(
+        deleteFile(itemData.media_url).catch(e => console.error('Failed to delete media file:', e))
+      );
     }
     batch.delete(doc.ref);
   });
 
-  // Also delete all ingestions associated with this feed
+  // 2. Cascade: delete all ingestion records
   const ingestionsSnapshot = await db.collection('ingestions').where('feed_id', '==', feedId).get();
   ingestionsSnapshot.docs.forEach(doc => {
     batch.delete(doc.ref);
   });
 
-  // Also delete all syndications associated with this feed
+  // 3. Cascade: delete all syndication records
   const syndicationsSnapshot = await db.collection('syndications').where('feed_id', '==', feedId).get();
   syndicationsSnapshot.docs.forEach(doc => {
     batch.delete(doc.ref);
   });
 
-  await Promise.all([
-    batch.commit(),
-    ...deleteFilePromises
-  ]);
+  // 4. Delete the feed itself (cover image + document) — last, so retries can re-discover children
+  const feedDoc = await db.collection('feeds').doc(feedId).get();
+  if (feedDoc.exists) {
+    const feedData = feedDoc.data() as Feed;
+    if (feedData.cover_image_url) {
+      deleteFilePromises.push(
+        deleteFile(feedData.cover_image_url).catch(e => console.error('Failed to delete cover image:', e))
+      );
+    }
+  }
+  batch.delete(db.collection('feeds').doc(feedId));
+
+  // Commit all Firestore deletes atomically, then wait for GCS cleanup
+  await batch.commit();
+  await Promise.allSettled(deleteFilePromises);
 };
 
 export const getFeeds = async (): Promise<Feed[]> => {
