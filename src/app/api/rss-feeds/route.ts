@@ -24,8 +24,10 @@ export async function POST(request: Request) {
         const { createIngestion } = await import('@/lib/firestore');
 
         const itemsToProcess = initialAction === 'all' ? feed.items : [feed.items[0]];
+        const now = Date.now();
 
-        for (const item of itemsToProcess) {
+        for (let i = 0; i < itemsToProcess.length; i++) {
+          const item = itemsToProcess[i];
           const itemUrl = item.link;
           if (itemUrl) {
             const ingestion = await createIngestion({
@@ -34,11 +36,19 @@ export async function POST(request: Request) {
               origin: 'rss',
             });
 
+            // Artificial timestamp: now minus `i` seconds.
+            // i=0 (newest in RSS) gets the newest timestamp (now)
+            // i=N (oldest in RSS batch) gets now - Ns
+            // This guarantees they sit at the top of the podcast feed as "new" episodes,
+            // but are chronologically ordered amongst themselves.
+            const artificialDate = new Date(now - i * 1000).toISOString();
+
             await enqueueIngestion({
               ingestionId: ingestion.id!,
               feedId,
               url: itemUrl,
               origin: 'rss',
+              published_at: artificialDate,
             });
           }
         }
