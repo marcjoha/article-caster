@@ -11,8 +11,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow internal worker routes and test routes
-  if (request.nextUrl.pathname.startsWith('/api/worker/') || request.nextUrl.pathname.startsWith('/api/ffmpeg-test')) {
+  // Allow internal worker routes (Cloud Tasks / Cloud Scheduler callbacks)
+  if (request.nextUrl.pathname.startsWith('/api/worker/')) {
     return NextResponse.next();
   }
 
