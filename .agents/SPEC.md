@@ -29,9 +29,9 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
    - The admin can play/listen to the generated audio content directly through the admin site.
 ## Data Model
 
-*   **Feeds**: `id`, `title`, `description`, `author`, `category` (optional), `cover_image_url`, `tts_voice`, `audio_prefix_message`, `unguessable_slug`, `created_at`
+*   **Feeds**: `id`, `title`, `description`, `author`, `category` (optional), `cover_image_url`, `tts_voice`, `audio_prefix_message`, `processed_urls` (permanent set of all URLs ever ingested, prevents RSS re-ingestion of deleted items), `unguessable_slug`, `created_at`
 *   **Items**: `id`, `feed_id`, `title`, `description`, `source_url`, `media_url` (Cloud Storage path), `type` (audio), `size_bytes`, `duration_seconds`, `origin` (article | youtube | rss), `created_at`
-*   **Ingestions**: `id`, `feed_id`, `url`, `status`, `error`, `origin` (article | youtube | rss), `created_at`
+*   **Ingestions**: `id`, `feed_id`, `url`, `status`, `error`, `origin` (article | youtube | rss), `created_at` — ephemeral work-in-progress records, auto-deleted on successful completion. Only pending/failed records exist at any time.
 *   **Syndications**: `id`, `feed_id`, `url`, `title`, `last_checked_at`, `created_at`
 
 ## Technology Stack

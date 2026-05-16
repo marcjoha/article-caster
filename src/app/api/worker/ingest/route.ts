@@ -4,7 +4,7 @@ import { synthesizeSpeech } from '@/lib/ingestion/tts';
 import { extractYoutubeAudio } from '@/lib/ingestion/youtube';
 import { applyLoudnessNormalization } from '@/lib/audio';
 import { streamUpload, getFileMetadata, deleteFile } from '@/lib/storage';
-import { createFeedItem, updateFeedItem, getFeedItemById, updateIngestion, db, Feed } from '@/lib/firestore';
+import { createFeedItem, updateFeedItem, getFeedItemById, getFeedItems, updateIngestion, addProcessedUrl, deleteIngestion, db, Feed } from '@/lib/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 
@@ -13,6 +13,15 @@ export async function POST(request: Request) {
 
   if (!ingestionId || !feedId || !url) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  }
+
+  // Guard: verify ingestion still exists before doing expensive work.
+  // If it was deleted (e.g. by "Clear failed"), skip silently and return 200
+  // so Cloud Tasks stops retrying.
+  const ingestionDoc = await db.collection('ingestions').doc(ingestionId).get();
+  if (!ingestionDoc.exists) {
+    console.warn(`Ingestion ${ingestionId} no longer exists (likely cleared). Skipping.`);
+    return NextResponse.json({ skipped: true });
   }
 
   let downloadedFilePath: string | null = null;
@@ -115,22 +124,45 @@ export async function POST(request: Request) {
         deleteFile(oldMediaUrl).catch(e => console.error("Failed to delete old media file:", e));
       }
     } else {
-      await createFeedItem({
-        feed_id: feedId,
-        title,
-        description,
-        source_url: url,
-        media_url: mediaUrl,
-        type: 'audio',
-        size_bytes: sizeBytes,
-        duration_seconds: durationSeconds,
-        origin: origin || 'article', // Default to article if missing
-        created_at: published_at ? new Date(published_at) : new Date(),
-      });
+      // Final dedup guard: check if another worker already created this item
+      // while we were processing. This prevents duplicates from concurrent ingestions.
+      const existingItems = await getFeedItems(feedId);
+      const existingItem = existingItems.find(item => item.source_url === url);
+
+      if (existingItem) {
+        // Another worker already created this item — update it silently instead
+        console.warn(`Item for ${url} already exists (${existingItem.id}). Updating in-place instead of creating duplicate.`);
+        const oldMediaUrl = existingItem.media_url;
+        await updateFeedItem(existingItem.id!, {
+          title,
+          description,
+          media_url: mediaUrl,
+          size_bytes: sizeBytes,
+          duration_seconds: durationSeconds,
+        });
+        if (oldMediaUrl && oldMediaUrl !== mediaUrl) {
+          deleteFile(oldMediaUrl).catch(e => console.error("Failed to delete old media file:", e));
+        }
+      } else {
+        await createFeedItem({
+          feed_id: feedId,
+          title,
+          description,
+          source_url: url,
+          media_url: mediaUrl,
+          type: 'audio',
+          size_bytes: sizeBytes,
+          duration_seconds: durationSeconds,
+          origin: origin || 'article',
+          created_at: published_at ? new Date(published_at) : new Date(),
+        });
+      }
     }
 
-    // Mark as completed
-    await updateIngestion(ingestionId, { status: 'completed' });
+    // Ingestion succeeded: record the URL as processed (permanent, survives item deletion)
+    // and delete the ephemeral ingestion record to keep the collection clean.
+    await addProcessedUrl(feedId, url);
+    await deleteIngestion(ingestionId);
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

@@ -21,6 +21,7 @@ export interface Feed {
   cover_image_url?: string;
   tts_voice?: string;
   audio_prefix_message?: string;
+  processed_urls?: string[];
   created_at: Date;
 }
 
@@ -181,7 +182,7 @@ export const createIngestion = async (ingestion: Omit<Ingestion, 'id' | 'created
 };
 
 export const updateIngestion = async (id: string, updates: Partial<Pick<Ingestion, 'status' | 'error'>>) => {
-  await db.collection('ingestions').doc(id).update(updates);
+  await db.collection('ingestions').doc(id).set(updates, { merge: true });
 };
 
 export const getActiveIngestions = async (feedId: string): Promise<Ingestion[]> => {
@@ -191,23 +192,32 @@ export const getActiveIngestions = async (feedId: string): Promise<Ingestion[]> 
     .limit(50)
     .get();
     
-  return snapshot.docs
-    .map(doc => {
-      const data = doc.data();
-      return { id: doc.id, ...data, created_at: data.created_at.toDate() } as Ingestion;
-    })
-    .filter(ing => ing.status !== 'completed');
-};
-
-export const getIngestionHistory = async (feedId: string): Promise<Ingestion[]> => {
-  const snapshot = await db.collection('ingestions')
-    .where('feed_id', '==', feedId)
-    .get();
-    
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return { id: doc.id, ...data, created_at: data.created_at.toDate() } as Ingestion;
   });
+};
+
+/**
+ * Adds a URL to the feed's processed_urls set.
+ * This prevents the RSS cron from re-ingesting articles that have been
+ * successfully processed or explicitly cleared by the user.
+ */
+export const addProcessedUrl = async (feedId: string, url: string) => {
+  const { FieldValue } = await import('firebase-admin/firestore');
+  await db.collection('feeds').doc(feedId).update({
+    processed_urls: FieldValue.arrayUnion(url),
+  });
+};
+
+/**
+ * Returns the set of URLs that have been processed for a feed.
+ * Used by the RSS cron to avoid re-ingesting deleted or cleared articles.
+ */
+export const getProcessedUrls = async (feedId: string): Promise<Set<string>> => {
+  const feedDoc = await db.collection('feeds').doc(feedId).get();
+  const data = feedDoc.data() as Feed | undefined;
+  return new Set(data?.processed_urls || []);
 };
 
 export const clearFailedIngestions = async (feedId: string) => {
@@ -216,13 +226,23 @@ export const clearFailedIngestions = async (feedId: string) => {
     .get();
 
   const batch = db.batch();
+  const clearedUrls: string[] = [];
   snapshot.docs.forEach(doc => {
     if (doc.data().status === 'failed') {
+      clearedUrls.push(doc.data().url);
       batch.delete(doc.ref);
     }
   });
 
   await batch.commit();
+
+  // Mark cleared URLs as processed so the RSS cron doesn't re-ingest them
+  if (clearedUrls.length > 0) {
+    const { FieldValue } = await import('firebase-admin/firestore');
+    await db.collection('feeds').doc(feedId).update({
+      processed_urls: FieldValue.arrayUnion(...clearedUrls),
+    });
+  }
 };
 
 export const deleteIngestion = async (id: string) => {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllSyndications, updateSyndication, createIngestion, getFeedItems, getIngestionHistory } from '@/lib/firestore';
+import { getAllSyndications, updateSyndication, createIngestion, getFeedItems, getProcessedUrls } from '@/lib/firestore';
 import { enqueueIngestion } from '@/lib/tasks';
 import Parser from 'rss-parser';
 
@@ -19,9 +19,8 @@ export async function GET() {
         const existingItems = await getFeedItems(syn.feed_id);
         const existingUrls = new Set(existingItems.map(item => item.source_url));
         
-        // Fetch ingestion history to avoid re-queueing or re-ingesting deleted items
-        const ingestionHistory = await getIngestionHistory(syn.feed_id);
-        const historyUrls = new Set(ingestionHistory.map(ing => ing.url));
+        // Fetch processed URLs to avoid re-queueing or re-ingesting deleted items
+        const processedUrls = await getProcessedUrls(syn.feed_id);
 
         // Process up to 5 newest items
         const itemsToCheck = feed.items.slice(0, 5);
@@ -32,8 +31,8 @@ export async function GET() {
           const itemUrl = item.link;
           if (!itemUrl) continue;
 
-          // If it's not already an item and has never been ingested
-          if (!existingUrls.has(itemUrl) && !historyUrls.has(itemUrl)) {
+          // If it's not already an item and has never been processed
+          if (!existingUrls.has(itemUrl) && !processedUrls.has(itemUrl)) {
             const ingestion = await createIngestion({
               feed_id: syn.feed_id,
               url: itemUrl,
