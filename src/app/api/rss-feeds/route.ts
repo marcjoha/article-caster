@@ -21,36 +21,57 @@ export async function POST(request: Request) {
       const feed = await parser.parseURL(url);
       
       if (feed.items && feed.items.length > 0 && initialAction !== 'future') {
-        const { createIngestion } = await import('@/lib/firestore');
+        const { createIngestion, getFeedItems, getProcessedUrls, getActiveIngestions } = await import('@/lib/firestore');
+
+        // Dedup: skip URLs that already exist as items, were previously processed, or are currently in-flight
+        const existingItems = await getFeedItems(feedId);
+        const existingUrls = new Set(existingItems.map(item => item.source_url));
+        const processedUrls = await getProcessedUrls(feedId);
+        const activeIngestions = await getActiveIngestions(feedId);
+        const activeUrls = new Set(activeIngestions.map(ing => ing.url));
 
         const itemsToProcess = initialAction === 'all' ? feed.items : [feed.items[0]];
         const now = Date.now();
+        let skipped = 0;
 
         for (let i = 0; i < itemsToProcess.length; i++) {
           const item = itemsToProcess[i];
           const itemUrl = item.link;
-          if (itemUrl) {
-            const ingestion = await createIngestion({
-              feed_id: feedId,
-              url: itemUrl,
-              origin: 'rss',
-            });
+          if (!itemUrl) continue;
 
-            // Artificial timestamp: now minus `i` seconds.
-            // i=0 (newest in RSS) gets the newest timestamp (now)
-            // i=N (oldest in RSS batch) gets now - Ns
-            // This guarantees they sit at the top of the podcast feed as "new" episodes,
-            // but are chronologically ordered amongst themselves.
-            const artificialDate = new Date(now - i * 1000).toISOString();
-
-            await enqueueIngestion({
-              ingestionId: ingestion.id!,
-              feedId,
-              url: itemUrl,
-              origin: 'rss',
-              published_at: artificialDate,
-            });
+          // Skip if already an item, previously processed, or currently in-flight
+          if (existingUrls.has(itemUrl) || processedUrls.has(itemUrl) || activeUrls.has(itemUrl)) {
+            skipped++;
+            continue;
           }
+
+          // Track this URL so subsequent iterations in the same loop won't re-queue it
+          activeUrls.add(itemUrl);
+
+          const ingestion = await createIngestion({
+            feed_id: feedId,
+            url: itemUrl,
+            origin: 'rss',
+          });
+
+          // Artificial timestamp: now minus `i` seconds.
+          // i=0 (newest in RSS) gets the newest timestamp (now)
+          // i=N (oldest in RSS batch) gets now - Ns
+          // This guarantees they sit at the top of the podcast feed as "new" episodes,
+          // but are chronologically ordered amongst themselves.
+          const artificialDate = new Date(now - i * 1000).toISOString();
+
+          await enqueueIngestion({
+            ingestionId: ingestion.id!,
+            feedId,
+            url: itemUrl,
+            origin: 'rss',
+            published_at: artificialDate,
+          });
+        }
+
+        if (skipped > 0) {
+          console.log(`RSS bulk-load: skipped ${skipped} already-processed URLs from ${url}`);
         }
       }
 
