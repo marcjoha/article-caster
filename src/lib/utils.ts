@@ -63,16 +63,26 @@ export function looksLikeRssFeed(url: string): boolean {
 }
 
 /**
+ * Returns true if the URL looks like a YouTube video.
+ */
+export function looksLikeYoutubeUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname.includes('youtube.com') || hostname.includes('youtu.be');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Returns true if the URL looks like a regular article or YouTube video
  * rather than an RSS feed.
  */
 export function looksLikeArticleUrl(url: string): boolean {
   try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-
+    new URL(url); // Validate URL format
     // YouTube URLs are never RSS feeds
-    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) return true;
+    if (looksLikeYoutubeUrl(url)) return true;
 
     // If it has RSS-like patterns, it's not an article
     if (looksLikeRssFeed(url)) return false;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createIngestion, getFeedItems, getActiveIngestions } from '@/lib/firestore';
 import { enqueueIngestion } from '@/lib/tasks';
-import { looksLikeRssFeed } from '@/lib/utils';
+import { looksLikeRssFeed, looksLikeYoutubeUrl } from '@/lib/utils';
 
 export async function POST(request: Request) {
   try {
@@ -9,7 +9,12 @@ export async function POST(request: Request) {
     const { feedId, url } = body;
     let { origin = 'article' } = body;
     
-    if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+    // Block YouTube URLs submitted through the article tab
+    if (origin === 'article' && looksLikeYoutubeUrl(url)) {
+      return NextResponse.json({ error: 'This URL looks like a YouTube video. Use the YouTube tab to ingest videos.' }, { status: 400 });
+    }
+
+    if (looksLikeYoutubeUrl(url)) {
       origin = 'youtube';
     }
 

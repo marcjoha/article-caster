@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Syndication } from '@/lib/firestore';
-import { formatDateTime, looksLikeRssFeed, looksLikeArticleUrl } from '@/lib/utils';
+import { formatDateTime, looksLikeRssFeed, looksLikeArticleUrl, looksLikeYoutubeUrl } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function IngestionTabs({ feedId, syndications }: { feedId: string, syndications: Syndication[] }) {
@@ -21,7 +21,9 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
   const [errorModalMessage, setErrorModalMessage] = useState<string | null>(null);
 
   // Client-side URL validation to prevent cross-posting
-  const articleUrlWarning = url && looksLikeRssFeed(url)
+  const articleUrlWarning = activeTab === 'article' && url && looksLikeYoutubeUrl(url)
+    ? 'This looks like a YouTube URL. Use the YouTube tab to ingest videos.'
+    : url && looksLikeRssFeed(url)
     ? 'This looks like an RSS feed URL. Use the RSS Feeds tab to subscribe to feeds.'
     : null;
   const rssUrlWarning = rssUrl && looksLikeArticleUrl(rssUrl)
