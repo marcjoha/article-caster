@@ -173,7 +173,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                             </div>
                           </td>
                           <td className="article-audio-cell">
-                            <audio controls src={item.media_url} />
+                            <audio controls>
+                              <source src={item.media_url} type={item.media_url.toLowerCase().endsWith('.wav') ? 'audio/wav' : 'audio/mpeg'} />
+                            </audio>
                           </td>
                           <td className="article-actions-cell">
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>
