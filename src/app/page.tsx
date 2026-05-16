@@ -71,7 +71,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                           cover_image_url: selectedFeed.cover_image_url,
                           author: selectedFeed.author,
                           tts_voice: selectedFeed.tts_voice,
-                          audio_prefix_message: selectedFeed.audio_prefix_message
+                          audio_prefix_message: selectedFeed.audio_prefix_message,
+                          chat_webhook_url: selectedFeed.chat_webhook_url,
                         }} 
                         buttonText="Edit" 
                       />

@@ -13,6 +13,7 @@ interface FeedFormProps {
     cover_image_url?: string;
     tts_voice?: string;
     audio_prefix_message?: string;
+    chat_webhook_url?: string;
   };
   buttonText?: string;
   buttonStyle?: React.CSSProperties;
@@ -31,6 +32,9 @@ export default function FeedForm({
   const [existingCoverUrl] = useState(initialData?.cover_image_url || '');
   const [ttsVoice, setTtsVoice] = useState((!initialData?.tts_voice || initialData.tts_voice === 'auto') ? 'Puck' : initialData.tts_voice);
   const [audioPrefixMessage, setAudioPrefixMessage] = useState(initialData?.audio_prefix_message || '');
+  const [chatWebhookUrl, setChatWebhookUrl] = useState(initialData?.chat_webhook_url || '');
+  const [webhookTestStatus, setWebhookTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [webhookTestError, setWebhookTestError] = useState('');
   const [loading, setLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -80,6 +84,29 @@ export default function FeedForm({
     setIsOpen(false);
   };
 
+  const handleTestWebhook = async () => {
+    if (!chatWebhookUrl) return;
+    setWebhookTestStatus('testing');
+    setWebhookTestError('');
+    try {
+      const res = await fetch('/api/feeds/test-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: chatWebhookUrl }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setWebhookTestStatus('success');
+      } else {
+        setWebhookTestStatus('error');
+        setWebhookTestError(data.error || 'Unknown error');
+      }
+    } catch {
+      setWebhookTestStatus('error');
+      setWebhookTestError('Network error');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -94,6 +121,7 @@ export default function FeedForm({
     formData.append('category', category);
     formData.append('tts_voice', ttsVoice);
     formData.append('audio_prefix_message', audioPrefixMessage);
+    formData.append('chat_webhook_url', chatWebhookUrl);
     if (coverImageFile) {
       formData.append('cover_image', coverImageFile);
     } else if (existingCoverUrl) {
@@ -227,6 +255,36 @@ export default function FeedForm({
                     {previewLoading ? 'Loading...' : isPlaying ? '⏹ Stop' : '▶ Play'}
                   </button>
                 </div>
+              </div>
+              <div className="form-group">
+                <label>Google Chat Webhook URL (Optional)</label>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input type="url" className="input-field" style={{ flex: 1, marginBottom: 0 }} value={chatWebhookUrl} onChange={e => { setChatWebhookUrl(e.target.value); setWebhookTestStatus('idle'); }} placeholder="https://chat.googleapis.com/v1/spaces/..." />
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{
+                      background: webhookTestStatus === 'success' ? '#22c55e' : webhookTestStatus === 'error' ? '#ef4444' : 'var(--accent-color)',
+                      color: '#fff',
+                      border: '1px solid ' + (webhookTestStatus === 'success' ? '#22c55e' : webhookTestStatus === 'error' ? '#ef4444' : 'var(--accent-color)'),
+                      padding: '0.4rem 0.8rem',
+                      fontSize: '0.875rem',
+                      whiteSpace: 'nowrap',
+                      width: '90px',
+                      textAlign: 'center',
+                    }}
+                    onClick={handleTestWebhook}
+                    disabled={!chatWebhookUrl || webhookTestStatus === 'testing'}
+                  >
+                    {webhookTestStatus === 'testing' ? 'Testing...' : webhookTestStatus === 'success' ? '✓ Sent' : webhookTestStatus === 'error' ? '✗ Failed' : '💬 Test'}
+                  </button>
+                </div>
+                {webhookTestStatus === 'error' && webhookTestError && (
+                  <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#ef4444' }}>{webhookTestError}</div>
+                )}
+                {webhookTestStatus === 'success' && (
+                  <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#22c55e' }}>Test card sent — check your Google Chat space.</div>
+                )}
               </div>
               <button type="submit" className="btn" disabled={loading} style={{width: '100%'}}>
                 {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Podcast')}

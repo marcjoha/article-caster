@@ -21,6 +21,7 @@ export interface Feed {
   cover_image_url?: string;
   tts_voice?: string;
   audio_prefix_message?: string;
+  chat_webhook_url?: string;
   processed_urls?: string[];
   created_at: Date;
 }

@@ -13,6 +13,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const author = formData.get('author') as string | undefined;
     const tts_voice = formData.get('tts_voice') as string | undefined;
     const audio_prefix_message = formData.get('audio_prefix_message') as string | undefined;
+    const chat_webhook_url = formData.get('chat_webhook_url') as string | undefined;
     const coverImageFile = formData.get('cover_image') as File | null;
     
     let cover_image_url = formData.get('cover_image_url') as string | undefined;
@@ -42,6 +43,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (cover_image_url !== undefined && cover_image_url !== null) updates.cover_image_url = cover_image_url;
     if (tts_voice !== null) updates.tts_voice = tts_voice;
     if (audio_prefix_message !== null) updates.audio_prefix_message = audio_prefix_message;
+    if (chat_webhook_url !== null) updates.chat_webhook_url = chat_webhook_url;
 
     await updateFeed(id, updates);
     

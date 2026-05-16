@@ -6,6 +6,7 @@ import { summarizeContent } from '@/lib/ingestion/summarize';
 import { applyLoudnessNormalization } from '@/lib/audio';
 import { streamUpload, getFileMetadata, deleteFile } from '@/lib/storage';
 import { createFeedItem, updateFeedItem, getFeedItems, updateIngestion, addProcessedUrl, deleteIngestion, db, Feed } from '@/lib/firestore';
+import { notifyNewEpisode } from '@/lib/chat';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 
@@ -144,6 +145,17 @@ export async function POST(request: Request) {
         origin: origin || 'article',
         created_at: published_at ? new Date(published_at) : new Date(),
       });
+
+      // Fire-and-forget: notify Google Chat space about the new episode
+      notifyNewEpisode({
+        title,
+        description,
+        sourceUrl: url,
+        durationSeconds,
+        origin: origin || 'article',
+        coverImageUrl: feed?.cover_image_url,
+        webhookUrl: feed?.chat_webhook_url,
+      }).catch(() => {}); // errors already logged inside notifyNewEpisode
     }
 
     // Ingestion succeeded: record the URL as processed (permanent, survives item deletion)
