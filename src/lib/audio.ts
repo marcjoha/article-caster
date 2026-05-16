@@ -43,11 +43,15 @@ export async function applyLoudnessNormalization(input: Buffer | string | (Buffe
     });
     
     filters.push(`${concatLabels.join('')}concat=n=${inputPaths.length}:v=0:a=1[outa]`);
-    filters.push(`[outa]loudnorm=I=-19:LRA=4:TP=-1.0[final]`);
+    filters.push(`[outa]loudnorm=I=-16:LRA=4:TP=-1.0[final]`);
     
     args.push('-filter_complex', filters.join(';'), '-map', '[final]');
   } else {
-    args.push('-af', 'loudnorm=I=-19:LRA=4:TP=-1.0');
+    args.push('-af', 'loudnorm=I=-16:LRA=4:TP=-1.0');
+  }
+
+  if (outputFormat === 'mp3') {
+    args.push('-codec:a', 'libmp3lame', '-b:a', '128k', '-ac', '1', '-ar', '44100');
   }
 
   args.push('-f', outputFormat, 'pipe:1');

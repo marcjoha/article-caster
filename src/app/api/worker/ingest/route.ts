@@ -36,8 +36,8 @@ export async function POST(request: Request) {
     let durationSeconds = 0;
     
     const fileId = uuidv4();
-    let fileExtension = 'wav';
-    let contentType = 'audio/wav';
+    const fileExtension = 'mp3';
+    const contentType = 'audio/mpeg';
 
     if (origin === 'youtube') {
       await updateIngestion(ingestionId, { status: '1/4: Downloading YouTube audio...' });
@@ -67,9 +67,7 @@ export async function POST(request: Request) {
       
       inputs.push(result.filePath);
       rawAudioInput = inputs.length === 1 ? inputs[0] : inputs;
-      
-      fileExtension = 'mp3';
-      contentType = 'audio/mpeg';
+
     } else {
       await updateIngestion(ingestionId, { status: '1/4: Extracting article...' });
       const voicePreference = feed?.tts_voice;
@@ -95,7 +93,7 @@ export async function POST(request: Request) {
     
     await updateIngestion(ingestionId, { status: `3/4: Mastering & Streaming ${fileExtension.toUpperCase()}...` });
     
-    const { writeStream, uploadPromise } = streamUpload(`article/${fileId}.${fileExtension}`, contentType);
+    const { writeStream, uploadPromise } = streamUpload(`content/${fileId}.${fileExtension}`, contentType);
     
     // Process audio and pipe to write stream
     await applyLoudnessNormalization(rawAudioInput, fileExtension as 'wav' | 'mp3', writeStream);

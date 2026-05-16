@@ -5,9 +5,9 @@ A personal podcast feed generator that converts web articles into spoken-word au
 
 ## Features
 
-- **Article-to-Audio Ingestion** — Paste any article URL to extract, clean (with LLM-based boilerplate removal), and convert it into a high-fidelity WAV podcast episode (processed asynchronously via Cloud Tasks).
+- **Article-to-Audio Ingestion** — Paste any article URL to extract, clean (with LLM-based boilerplate removal), and convert it into a podcast-grade MP3 episode (processed asynchronously via Cloud Tasks).
 - **YouTube Video Ingestion** — Paste any YouTube URL to extract the audio and add it to your podcast feed (requires local development environment due to datacenter IP blocking).
-- **Audio Mastering** — Applies EBU R128 loudness normalization and True Peak limiting via FFmpeg to ensure broadcast-quality audio.
+- **Audio Mastering** — Encodes MP3 (128 kbps CBR, 44.1 kHz mono) and applies loudness normalization (-16 LUFS, -1.0 dBTP) via FFmpeg for professional podcast audio.
 - **RSS Syndication** — Subscribe your custom feeds to external RSS sources to automatically ingest new blog posts on a daily schedule.
 - **Podcast Feed Management** — Create and manage multiple podcast feeds, each with its own title, description, author, cover image, TTS voice, and custom audio prefix message.
 - **Private RSS Feeds** — Each feed gets a unique, unguessable URL that can be subscribed to in any podcast client.
@@ -23,7 +23,7 @@ A personal podcast feed generator that converts web articles into spoken-word au
 |---|---|
 | **Cloud Run** | Hosts the Next.js application (admin UI + API routes + RSS feed endpoint). Also performs FFmpeg audio mastering. |
 | **Cloud Firestore** | Stores metadata for feeds, items, and ingestion records |
-| **Cloud Storage (GCS)** | Stores generated WAV audio files, publicly accessible for podcast clients |
+| **Cloud Storage (GCS)** | Stores generated MP3 audio files, publicly accessible for podcast clients |
 | **Cloud Tasks** | Queues and processes long-running article ingestion jobs asynchronously |
 | **Cloud Scheduler** | Triggers daily RSS syndication cron job |
 | **Vertex AI (Gemini TTS)** | Synthesizes article text into natural-sounding audio using Gemini 3.1 Flash TTS |
@@ -33,7 +33,7 @@ A personal podcast feed generator that converts web articles into spoken-word au
 - **Framework**: Next.js 16 (App Router)
 - **Infrastructure**: Google Cloud Run, Firestore, Cloud Storage, Cloud Tasks, Cloud Scheduler
 - **TTS**: Vertex AI Gemini 3.1 Flash TTS
-- **Audio Processing**: FFmpeg (`fluent-ffmpeg`) for broadcast-standard loudness normalization
+- **Audio Processing**: FFmpeg (`fluent-ffmpeg`) for MP3 encoding and podcast-standard loudness normalization
 - **Article Extraction**: Primary direct fetch with Jina Reader API fallback, parsed via `@mozilla/readability` + `jsdom`
 - **Podcast Feed**: `podcast` npm package (RSS 2.0 with iTunes extensions)
 

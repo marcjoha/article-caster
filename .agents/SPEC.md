@@ -44,7 +44,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
     *   **Google Cloud Scheduler**: Triggers daily RSS syndication cron jobs to automatically ingest new blog posts.
     *   **Article Extraction**: Primary direct fetch with Jina Reader API fallback, paired with `@mozilla/readability` and `jsdom` to extract clean text, followed by a Gemini LLM to remove boilerplate and ads.
     *   **Text-to-Speech (TTS)**: Gemini 3.1 Flash TTS API for highly expressive, human-like podcast audio.
-    *   **Audio Mastering**: FFmpeg is used to apply EBU R128 loudness normalization (-19 LUFS) and True Peak limiting (-1.0 dBTP) for broadcast-quality audio.
+    *   **Audio Mastering**: FFmpeg is used to encode podcast-grade MP3 (128 kbps CBR, 44.1 kHz mono via libmp3lame) and apply loudness normalization (-16 LUFS) with True Peak limiting (-1.0 dBTP) for professional podcast audio.
     *   **Podcast Feed**: `podcast` npm package (supports RSS 2.0 with iTunes extensions for audio enclosures).
 
 ## User Interface
