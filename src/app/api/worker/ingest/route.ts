@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { extractArticleContent } from '@/lib/ingestion/article';
 import { synthesizeSpeech } from '@/lib/ingestion/tts';
 import { extractYoutubeAudio } from '@/lib/ingestion/youtube';
+import { summarizeContent } from '@/lib/ingestion/summarize';
 import { applyLoudnessNormalization } from '@/lib/audio';
 import { streamUpload, getFileMetadata, deleteFile } from '@/lib/storage';
 import { createFeedItem, updateFeedItem, getFeedItems, updateIngestion, addProcessedUrl, deleteIngestion, db, Feed } from '@/lib/firestore';
@@ -43,7 +44,6 @@ export async function POST(request: Request) {
       await updateIngestion(ingestionId, { status: '1/4: Downloading YouTube audio...' });
       const result = await extractYoutubeAudio(url);
       title = result.title;
-      description = result.description.substring(0, 200) + '...';
       durationSeconds = result.durationSeconds;
       downloadedFilePath = result.filePath;
       
@@ -57,11 +57,13 @@ export async function POST(request: Request) {
       }
 
       await updateIngestion(ingestionId, { status: '2/4: Generating prefix audio...' });
-      const prefixTts = await synthesizeSpeech({ 
-        textBlocks: [prefixText], 
-        language: 'en', 
-        voicePreference 
-      });
+
+      // Run summarization concurrently with TTS prefix generation
+      const [prefixTts, summary] = await Promise.all([
+        synthesizeSpeech({ textBlocks: [prefixText], language: 'en', voicePreference }),
+        summarizeContent(title, result.description),
+      ]);
+      description = summary;
       inputs.push(prefixTts.audioBuffer);
       durationSeconds += prefixTts.durationSeconds;
       
@@ -74,7 +76,6 @@ export async function POST(request: Request) {
 
       const extracted = await extractArticleContent(url);
       title = extracted.title;
-      description = extracted.textContent.substring(0, 200) + '...';
       
       const domain = new URL(url).hostname.replace(/^www\./, '');
       const originLabel = origin === 'rss' ? 'blog post' : 'article';
@@ -86,7 +87,12 @@ export async function POST(request: Request) {
 
       await updateIngestion(ingestionId, { status: '2/4: Generating audio...' });
 
-      const ttsResult = await synthesizeSpeech({ textBlocks: extracted.textBlocks, language: extracted.language, voicePreference });
+      // Run summarization concurrently with TTS generation
+      const [ttsResult, summary] = await Promise.all([
+        synthesizeSpeech({ textBlocks: extracted.textBlocks, language: extracted.language, voicePreference }),
+        summarizeContent(title, extracted.textContent),
+      ]);
+      description = summary;
       rawAudioInput = ttsResult.audioBuffer;
       durationSeconds = ttsResult.durationSeconds;
     }

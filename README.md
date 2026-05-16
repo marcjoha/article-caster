@@ -7,6 +7,7 @@ A personal podcast feed generator that converts web articles into spoken-word au
 
 - **Article-to-Audio Ingestion** — Paste any article URL to extract, clean (with LLM-based boilerplate removal), and convert it into a podcast-grade MP3 episode (processed asynchronously via Cloud Tasks).
 - **YouTube Video Ingestion** — Paste any YouTube URL to extract the audio and add it to your podcast feed (requires local development environment due to datacenter IP blocking).
+- **AI Episode Summaries** — Each episode automatically gets a concise, Gemini-generated description displayed in podcast players.
 - **Audio Mastering** — Encodes MP3 (128 kbps CBR, 44.1 kHz mono) and applies loudness normalization (-16 LUFS, -1.0 dBTP) via FFmpeg for professional podcast audio.
 - **RSS Syndication** — Subscribe your custom feeds to external RSS sources to automatically ingest new blog posts on a daily schedule.
 - **Podcast Feed Management** — Create and manage multiple podcast feeds, each with its own title, description, author, cover image, TTS voice, and custom audio prefix message.

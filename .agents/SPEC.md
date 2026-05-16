@@ -22,6 +22,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
    - **Articles**: The admin can submit an article URL. The system offloads the processing to a Google Cloud Tasks background worker, which extracts the main text content, removes ads and boilerplate using a Gemini LLM, and uses a Text-to-Speech (TTS) service to generate an audio file.
    - **YouTube Videos**: The admin can submit a YouTube URL. The worker extracts the video audio using yt-dlp, prepends the standardized intro message using TTS, and streams the MP3 data natively via FFmpeg to prevent memory overload.
    - **RSS Syndication**: The admin can add RSS syndications to automatically ingest blog posts. A scheduled cron job (via Cloud Scheduler) periodically syncs new items.
+   - **Episode Summaries**: During ingestion, Gemini generates a concise 1–3 sentence summary of each episode's source content. This summary is stored as the episode description and surfaced in the RSS feed's `<description>` and `<itunes:summary>` elements for podcast players to display.
 4. **Content Management**:
    - Ingested items are added to a specific feed.
    - The admin can remove previously added items.
