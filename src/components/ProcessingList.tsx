@@ -84,9 +84,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
   const handleTryAgain = async (ing: Ingestion) => {
     // We shouldn't optimistically remove it until we know it succeeded, or at least show an error.
     try {
-
-      
-      // 1. Add it back to the queue FIRST
+      // Add it back to the queue FIRST
       const res = await fetch('/api/ingest', {
         method: 'POST',
         body: JSON.stringify({ feedId, url: ing.url, origin: ing.origin }),

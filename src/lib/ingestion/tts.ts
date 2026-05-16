@@ -68,8 +68,6 @@ interface SynthesizeResult {
   durationSeconds: number;
 }
 
-
-
 function crossfadeBuffers(buffers: Buffer[], overlapSamples: number = 1200): Buffer {
   const validBuffers = buffers.filter(b => b && b.length > 0);
   if (validBuffers.length === 0) return Buffer.alloc(0);
