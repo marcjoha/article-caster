@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createIngestion, getFeedItems, getActiveIngestions } from '@/lib/firestore';
 import { enqueueIngestion } from '@/lib/tasks';
+import { looksLikeRssFeed } from '@/lib/utils';
 
 export async function POST(request: Request) {
   try {
@@ -10,6 +11,11 @@ export async function POST(request: Request) {
     
     if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
       origin = 'youtube';
+    }
+
+    // Reject RSS feed URLs — these should go through the RSS Feeds tab
+    if (origin !== 'rss' && looksLikeRssFeed(url)) {
+      return NextResponse.json({ error: 'This URL looks like an RSS feed. Use the RSS Feeds tab to subscribe to feeds instead.' }, { status: 400 });
     }
 
     // Restrict YouTube ingestion to local development

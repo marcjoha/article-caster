@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Syndication } from '@/lib/firestore';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, looksLikeRssFeed, looksLikeArticleUrl } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function IngestionTabs({ feedId, syndications }: { feedId: string, syndications: Syndication[] }) {
@@ -20,8 +20,17 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
   const [initialAction, setInitialAction] = useState('future');
   const [errorModalMessage, setErrorModalMessage] = useState<string | null>(null);
 
+  // Client-side URL validation to prevent cross-posting
+  const articleUrlWarning = url && looksLikeRssFeed(url)
+    ? 'This looks like an RSS feed URL. Use the RSS Feeds tab to subscribe to feeds.'
+    : null;
+  const rssUrlWarning = rssUrl && looksLikeArticleUrl(rssUrl)
+    ? 'This looks like a regular article or video URL, not an RSS feed. Use the Article tab to ingest individual articles.'
+    : null;
+
   const handleIngestArticle = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (articleUrlWarning) return;
     setLoading(true);
     try {
       const res = await fetch('/api/ingest', {
@@ -49,6 +58,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
 
   const handleAddRss = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (rssUrlWarning) return;
     setRssLoading(true);
     try {
       const res = await fetch('/api/rss-feeds', {
@@ -177,11 +187,19 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
         <form onSubmit={handleIngestArticle}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <input type="url" className="input-field" value={url} onChange={e => setUrl(e.target.value)} placeholder={activeTab === 'youtube' ? "https://youtube.com/watch?v=..." : "https://example.com/article"} required style={{ marginBottom: 0 }} />
-              <button type="submit" className="btn" disabled={loading} style={{ whiteSpace: 'nowrap' }}>
+              <input type="url" className="input-field" value={url} onChange={e => setUrl(e.target.value)} placeholder={activeTab === 'youtube' ? "https://youtube.com/watch?v=..." : "https://example.com/article"} required style={{ marginBottom: 0, borderColor: articleUrlWarning ? '#f59e0b' : undefined }} />
+              <button type="submit" className="btn" disabled={loading || !!articleUrlWarning} style={{ whiteSpace: 'nowrap' }}>
                 {loading ? 'Processing...' : 'Add'}
               </button>
             </div>
+            {articleUrlWarning && (
+              <p style={{ color: '#f59e0b', fontSize: '0.8rem', margin: '0.5rem 0 0 0', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem', flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                {articleUrlWarning}
+              </p>
+            )}
           </div>
         </form>
       ) : (
@@ -189,16 +207,24 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
           <form onSubmit={handleAddRss} style={{ marginBottom: '1.5rem' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <input type="url" className="input-field" value={rssUrl} onChange={e => setRssUrl(e.target.value)} placeholder="https://example.com/rss.xml" required style={{ marginBottom: 0, flex: 1 }} />
+                <input type="url" className="input-field" value={rssUrl} onChange={e => setRssUrl(e.target.value)} placeholder="https://example.com/rss.xml" required style={{ marginBottom: 0, flex: 1, borderColor: rssUrlWarning ? '#f59e0b' : undefined }} />
                 <select className="input-field" value={initialAction} onChange={e => setInitialAction(e.target.value)} style={{ marginBottom: 0, width: 'auto' }}>
                   <option value="future">Add only future posts</option>
                   <option value="recent">Also add most recent post</option>
                   <option value="all">Also add all historical posts</option>
                 </select>
-                <button type="submit" className="btn" disabled={rssLoading} style={{ whiteSpace: 'nowrap' }}>
+                <button type="submit" className="btn" disabled={rssLoading || !!rssUrlWarning} style={{ whiteSpace: 'nowrap' }}>
                   {rssLoading ? 'Adding...' : 'Subscribe'}
                 </button>
               </div>
+              {rssUrlWarning && (
+                <p style={{ color: '#f59e0b', fontSize: '0.8rem', margin: '0.5rem 0 0 0', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem', flexShrink: 0 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                  {rssUrlWarning}
+                </p>
+              )}
             </div>
           </form>
           

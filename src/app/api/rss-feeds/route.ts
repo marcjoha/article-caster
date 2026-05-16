@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSyndication, deleteSyndication } from '@/lib/firestore';
 import { enqueueIngestion } from '@/lib/tasks';
+import { looksLikeArticleUrl } from '@/lib/utils';
 
 export async function POST(request: Request) {
   try {
@@ -8,6 +9,11 @@ export async function POST(request: Request) {
     
     if (!feedId || !url) {
       return NextResponse.json({ error: 'feedId and url are required' }, { status: 400 });
+    }
+
+    // Reject URLs that clearly look like regular articles, not RSS feeds
+    if (looksLikeArticleUrl(url)) {
+      return NextResponse.json({ error: 'This URL looks like a regular article, not an RSS feed. Use the Article tab to ingest individual articles.' }, { status: 400 });
     }
 
     const syndication = await createSyndication({
