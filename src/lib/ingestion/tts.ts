@@ -13,6 +13,48 @@ interface SynthesizeOptions {
   voicePreference?: string;
 }
 
+/**
+ * Normalizes a language code to a full BCP-47 locale required by Gemini TTS.
+ * Many websites set bare codes like "en" instead of "en-US", which the API rejects
+ * with INVALID_ARGUMENT.
+ */
+const normalizeLanguageCode = (lang: string): string => {
+  const code = lang.trim().toLowerCase();
+
+  // Already a full BCP-47 code (e.g. "en-US", "fr-FR")
+  if (code.includes('-')) return code;
+
+  // Map bare language codes to their default region
+  const defaults: Record<string, string> = {
+    en: 'en-US',
+    fr: 'fr-FR',
+    de: 'de-DE',
+    es: 'es-ES',
+    it: 'it-IT',
+    pt: 'pt-BR',
+    nl: 'nl-NL',
+    ja: 'ja-JP',
+    ko: 'ko-KR',
+    ru: 'ru-RU',
+    ar: 'ar-EG',
+    hi: 'hi-IN',
+    pl: 'pl-PL',
+    tr: 'tr-TR',
+    vi: 'vi-VN',
+    th: 'th-TH',
+    ro: 'ro-RO',
+    uk: 'uk-UA',
+    id: 'id-ID',
+    sv: 'sv-SE',
+    da: 'da-DK',
+    fi: 'fi-FI',
+    nb: 'nb-NO',
+    no: 'nb-NO',
+  };
+
+  return defaults[code] || 'en-US';
+};
+
 const resolveVoice = (voicePreference?: string) => {
   const validVoices = ['Puck', 'Kore', 'Aoede', 'Charon', 'Fenrir', 'Leda'];
   if (voicePreference && validVoices.includes(voicePreference)) {
@@ -128,7 +170,7 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
               { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
             ],
             speechConfig: {
-              languageCode: options.language || 'en-US',
+              languageCode: normalizeLanguageCode(options.language || 'en-US'),
               voiceConfig: {
                 prebuiltVoiceConfig: {
                   voiceName: voiceName
@@ -153,11 +195,14 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
         audioBuffers[index] = Buffer.from(audioB64, 'base64');
         return;
       } catch (err) {
-        const isRetryable = err instanceof Error && /429|503|resource exhausted/i.test(err.message);
+        const isRateLimit = err instanceof Error && /429|503|resource exhausted/i.test(err.message);
+        const isTransientApiError = err instanceof Error && /400|INVALID_ARGUMENT/i.test(err.message);
+        const isRetryable = isRateLimit || isTransientApiError;
 
         if (isRetryable && attempt < MAX_RETRIES) {
           const backoffMs = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
-          console.warn(`Chunk ${index} hit rate limit (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${backoffMs}ms...`);
+          const reason = isRateLimit ? 'rate limit' : 'transient API error';
+          console.warn(`Chunk ${index} hit ${reason} (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${backoffMs}ms...`);
           await new Promise(r => setTimeout(r, backoffMs));
           continue;
         }
