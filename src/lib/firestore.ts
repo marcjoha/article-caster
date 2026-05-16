@@ -166,7 +166,6 @@ export interface Ingestion {
   status: string;
   error?: string;
   origin?: 'article' | 'rss' | 'youtube';
-  item_id?: string;
   created_at?: FirebaseFirestore.Timestamp | Date;
 }
 

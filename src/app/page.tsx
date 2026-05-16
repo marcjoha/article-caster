@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import Image from 'next/image';
 import { getFeeds, getFeedItems, getSyndications } from '@/lib/firestore';
 import FeedForm from '@/components/FeedForm';
-import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay, ReprocessItemButton } from '@/components/ClientButtons';
+import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay } from '@/components/ClientButtons';
 import IngestionTabs from '@/components/IngestionTabs';
 import FeedSelector from '@/components/FeedSelector';
 import ProcessingList from '@/components/ProcessingList';
@@ -89,7 +89,22 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
                 <h3 style={{margin: 0}}>Podcast Episodes</h3>
-                <span style={{color: 'var(--text-secondary)', fontSize: '0.875rem'}}>{items.length} {items.length === 1 ? 'episode' : 'episodes'}</span>
+                <span style={{color: 'var(--text-secondary)', fontSize: '0.875rem'}}>
+                  {items.length} {items.length === 1 ? 'episode' : 'episodes'}
+                  {items.length > 0 && (() => {
+                    const totalBytes = items.reduce((sum, item) => sum + (item.size_bytes || 0), 0);
+                    if (totalBytes === 0) return null;
+                    const units = ['B', 'KB', 'MB', 'GB'];
+                    let size = totalBytes;
+                    let unitIndex = 0;
+                    while (size >= 1024 && unitIndex < units.length - 1) {
+                      size /= 1024;
+                      unitIndex++;
+                    }
+                    const formatted = unitIndex === 0 ? `${size} ${units[unitIndex]}` : `${size.toFixed(size < 10 ? 1 : 0)} ${units[unitIndex]}`;
+                    return <> · {formatted}</>;
+                  })()}
+                </span>
               </div>
               
               {items.length === 0 ? (
@@ -162,7 +177,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                           </td>
                           <td className="article-actions-cell">
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>
-                              <ReprocessItemButton itemId={item.id!} />
                               <DeleteItemButton itemId={item.id!} />
                             </div>
                           </td>

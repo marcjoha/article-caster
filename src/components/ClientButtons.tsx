@@ -133,34 +133,3 @@ export function DeleteItemButton({ itemId }: { itemId: string }) {
     </>
   );
 }
-
-export function ReprocessItemButton({ itemId }: { itemId: string }) {
-  const router = useRouter();
-  const [isProcessing, setIsProcessing] = useState(false);
-  
-  const handleReprocess = async () => {
-    setIsProcessing(true);
-    try {
-      await fetch(`/api/items/${itemId}/reprocess`, { method: 'POST' });
-      router.refresh();
-    } catch (e) {
-      console.error('Failed to start reprocessing', e);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-  
-  return (
-    <button 
-      onClick={handleReprocess} 
-      className="btn" 
-      style={{backgroundColor: '#3b82f6', color: 'white', padding: '0.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}
-      title="Reprocess Episode"
-      disabled={isProcessing}
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.25rem', height: '1.25rem' }}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-      </svg>
-    </button>
-  );
-}

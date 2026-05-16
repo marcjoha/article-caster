@@ -11,7 +11,6 @@ type Ingestion = {
   status: string;
   error?: string;
   created_at: string;
-  item_id?: string;
   origin?: 'article' | 'rss' | 'youtube';
 };
 
@@ -115,7 +114,7 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
 
   const getStatusText = (ing: Ingestion) => {
     if (ing.status === 'pending') return 'Pending...';
-    if (ing.status === 'processing') return ing.item_id ? 'Reprocessing episode...' : 'Processing...';
+    if (ing.status === 'processing') return 'Processing...';
     return ing.status;
   };
 
