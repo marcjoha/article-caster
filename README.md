@@ -13,7 +13,7 @@ A personal podcast feed generator that converts web articles into spoken-word au
 - **RSS Syndication** — Subscribe your custom feeds to external RSS sources to automatically ingest new blog posts on a daily schedule.
 - **Podcast Feed Management** — Create and manage multiple podcast feeds, each with its own title, description, author, cover image, TTS voice, and custom audio prefix message.
 - **Private RSS Feeds** — Each feed gets a unique, unguessable URL that can be subscribed to in any podcast client.
-- **Google Chat Notifications** — Optionally post a rich card to a Google Chat space when a new episode is ingested. Configure a webhook URL per podcast in the feed settings.
+- **Google Chat Notifications** — Optionally post rich episode cards to a Google Chat space. Cards show origin type (📰 Article / 📡 RSS / 🎬 YouTube), AI-generated summary, source domain, duration, and one-tap buttons for listening, subscribing, and reading the original. Episodes from the same feed are threaded together, with a prompt encouraging discussion.
 
 - **Admin Authentication** — Simple passcode-based login to protect the admin dashboard.
 - **Content Management** — Play/listen to generated audio directly in the admin UI, and remove items from feeds.
