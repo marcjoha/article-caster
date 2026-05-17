@@ -126,26 +126,34 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
     { widgets: discussionWidgets },
   ];
 
-  // --- Thread grouping: append threadKey to webhook URL ---
+  // --- Thread grouping: append messageReplyOption to webhook URL,
+  // and include threadKey in the JSON body ---
   let webhookUrlWithThread = episode.webhookUrl;
   if (episode.feedSlug) {
     const separator = episode.webhookUrl.includes('?') ? '&' : '?';
-    webhookUrlWithThread = `${episode.webhookUrl}${separator}threadKey=${episode.feedSlug}&messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD`;
+    webhookUrlWithThread = `${episode.webhookUrl}${separator}messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD`;
   }
 
   try {
+    const payload: Record<string, unknown> = {
+      cardsV2: [{
+        cardId: `episode-${Date.now()}`,
+        card: {
+          header,
+          sections,
+        },
+      }],
+    };
+
+    // Thread grouping: threadKey goes in the JSON body
+    if (episode.feedSlug) {
+      payload.thread = { threadKey: episode.feedSlug };
+    }
+
     const response = await fetch(webhookUrlWithThread, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-      body: JSON.stringify({
-        cardsV2: [{
-          cardId: `episode-${Date.now()}`,
-          card: {
-            header,
-            sections,
-          },
-        }],
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
