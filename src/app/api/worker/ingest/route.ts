@@ -108,11 +108,22 @@ export async function POST(request: Request) {
     // Wait for the upload to complete
     const mediaUrl = await uploadPromise;
     
-    await updateIngestion(ingestionId, { status: '4/4: Saving episode...' });
-
     // Get final size from GCS
     const { size: sizeBytes } = await getFileMetadata(mediaUrl);
-    
+
+    // Availability gate: verify the audio file is publicly accessible before
+    // committing it to the podcast feed or notifying subscribers.
+    // This prevents broken episodes from reaching listeners.
+    const headResponse = await fetch(mediaUrl, { method: 'HEAD' });
+    if (!headResponse.ok) {
+      // Upload appeared to succeed but file is not publicly reachable — clean up
+      // the orphaned GCS object and fail the ingestion so it can be retried.
+      deleteFile(mediaUrl).catch(e => console.error('Cleanup of unreachable media failed:', e));
+      throw new Error(`Audio file uploaded but not publicly accessible (HTTP ${headResponse.status}). Cleaned up orphan and failing ingestion for retry.`);
+    }
+
+    await updateIngestion(ingestionId, { status: '4/4: Saving episode...' });
+
     // Final dedup guard: check if another worker already created this item
     // while we were processing. This prevents duplicates from concurrent ingestions.
     const existingItems = await getFeedItems(feedId);
@@ -133,7 +144,7 @@ export async function POST(request: Request) {
         deleteFile(oldMediaUrl).catch(e => console.error("Failed to delete old media file:", e));
       }
     } else {
-      await createFeedItem({
+      const newItem = await createFeedItem({
         feed_id: feedId,
         title,
         description,
@@ -155,6 +166,9 @@ export async function POST(request: Request) {
         origin: origin || 'article',
         coverImageUrl: feed?.cover_image_url,
         webhookUrl: feed?.chat_webhook_url,
+        feedTitle: feed?.title || '',
+        feedSlug: feed?.unguessable_slug || '',
+        itemId: newItem.id!,
       }).catch(() => {}); // errors already logged inside notifyNewEpisode
     }
 

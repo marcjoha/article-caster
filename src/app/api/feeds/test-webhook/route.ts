@@ -21,13 +21,33 @@ export async function POST(request: Request) {
               imageUrl: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/podcast/default/48px.svg',
               imageType: 'CIRCLE',
             },
-            sections: [{
-              widgets: [{
-                textParagraph: {
-                  text: 'This is a test message from article-caster. New episode notifications will appear here as rich cards.',
-                },
-              }],
-            }],
+            sections: [
+              {
+                widgets: [{
+                  textParagraph: {
+                    text: 'New episode notifications will appear here as rich cards with AI-generated summaries, quick-listen links, and subscribe buttons.',
+                  },
+                }],
+              },
+              {
+                widgets: [{
+                  buttonList: {
+                    buttons: [
+                      { text: '▶️ Listen Now', onClick: { openLink: { url: 'https://github.com/marcjoha/article-caster' } } },
+                      { text: '🔔 Subscribe to Feed', onClick: { openLink: { url: 'https://github.com/marcjoha/article-caster' } } },
+                      { text: '📖 Read Original', onClick: { openLink: { url: 'https://github.com/marcjoha/article-caster' } } },
+                    ],
+                  },
+                }],
+              },
+              {
+                widgets: [{
+                  textParagraph: {
+                    text: '💬 <i>Thoughts? Reply to this thread to discuss!</i>',
+                  },
+                }],
+              },
+            ],
           },
         }],
       }),
