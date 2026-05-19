@@ -24,17 +24,24 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
    - **YouTube Videos**: The admin can submit a YouTube URL. The worker extracts the video audio using yt-dlp, prepends the standardized intro message using TTS, and streams the MP3 data natively via FFmpeg to prevent memory overload.
    - **RSS Syndication**: The admin can add RSS syndications to automatically ingest blog posts. A scheduled cron job (via Cloud Scheduler) periodically syncs new items.
    - **Episode Summaries**: During ingestion, Gemini generates a concise 1–3 sentence summary of each episode's source content. This summary is stored as the episode description and surfaced in the RSS feed's `<description>` and `<itunes:summary>` elements for podcast players to display.
-   - **Google Chat Notifications**: Each feed can optionally have a Google Chat webhook URL configured. When set, a rich card message is posted to the Chat space for each newly ingested episode. The card includes an origin-specific header (📰 Article / 📡 RSS / 🎬 YouTube), the episode title, AI-generated summary, source domain, duration, and three action buttons: Listen Now (direct MP3 link via the media proxy), Subscribe to Feed (RSS XML link), and Read Original (source URL). A discussion prompt encourages thread replies. Episodes from the same feed are grouped into a single thread using `threadKey`. In-place updates (reprocessing) are silent and do not trigger notifications.
+   - **Google Chat Notifications**: Each feed can optionally have a Google Chat webhook URL configured. When set, a rich card message is posted to the Chat space for each newly ingested episode. The card header displays the episode title with a subtitle of "New episode of [feed title]". The card body includes the AI-generated summary, source domain, duration, and three action buttons: Listen Now (direct MP3 link via the media proxy), Subscribe to Feed (RSS XML link), and Read Original (source URL). A discussion prompt encourages thread replies. Each episode is posted as a top-level message. In-place updates (reprocessing) are silent and do not trigger notifications.
 4. **Content Management**:
    - Ingested items are added to a specific feed.
    - The admin can remove previously added items.
    - The admin can play/listen to the generated audio content directly through the admin site.
+5. **Activity Log**:
+   - Each feed maintains a per-feed activity log that records important pipeline events: ingestion lifecycle (success, failure, dedup), RSS cron syncs, Chat notification outcomes, and feed/episode management actions.
+   - The log is accessible via a "Log" button in the feed header.
+   - Clicking the button opens a modal dialog showing timestamped log entries, each color-coded by severity (info/warn/error) and tagged by category (ingestion/rss/chat/feed/episode).
+   - The log auto-refreshes every 5 seconds while the modal is open.
+   - Log retention is capped at 500 entries per feed; oldest entries are purged on each write.
 ## Data Model
 
 *   **Feeds**: `id`, `title`, `description`, `author`, `category` (optional), `cover_image_url`, `tts_voice`, `audio_prefix_message`, `chat_webhook_url` (optional, Google Chat incoming webhook URL), `processed_urls` (permanent set of all URLs ever ingested, prevents RSS re-ingestion of deleted items), `unguessable_slug`, `created_at`
 *   **Items**: `id`, `feed_id`, `title`, `description`, `source_url`, `media_url` (Cloud Storage path), `type` (audio), `size_bytes`, `duration_seconds`, `origin` (article | youtube | rss), `created_at`
 *   **Ingestions**: `id`, `feed_id`, `url`, `status`, `error`, `origin` (article | youtube | rss), `created_at` — ephemeral work-in-progress records, auto-deleted on successful completion. Only pending/failed records exist at any time.
 *   **Syndications**: `id`, `feed_id`, `url`, `title`, `last_checked_at`, `created_at`
+*   **Logs**: `id`, `feed_id`, `level` (info | warn | error), `category` (ingestion | rss | chat | feed | episode), `message`, `details` (optional), `created_at` — activity log entries, capped at 500 per feed. Cascade-deleted with feed.
 
 ## Technology Stack
 
