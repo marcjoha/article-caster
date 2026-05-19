@@ -6,6 +6,7 @@ import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay } from '@/components
 import IngestionTabs from '@/components/IngestionTabs';
 import FeedSelector from '@/components/FeedSelector';
 import ProcessingList from '@/components/ProcessingList';
+import LogViewer from '@/components/LogViewer';
 
 import { formatDateTime } from '@/lib/utils';
 
@@ -26,6 +27,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const activeFeedId = selectedFeed?.id;
   const items = activeFeedId ? await getFeedItems(activeFeedId) : [];
   const syndications = activeFeedId ? await getSyndications(activeFeedId) : [];
+
 
   return (
     <div className="container" style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -76,6 +78,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         }} 
                         buttonText="Edit" 
                       />
+                      <LogViewer feedId={selectedFeed.id!} />
                       <DeleteFeedButton feedId={selectedFeed.id!} />
                     </div>
                   </div>
