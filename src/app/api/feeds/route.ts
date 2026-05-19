@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createFeed, getFeeds } from '@/lib/firestore';
 import { uploadFile } from '@/lib/storage';
+import { logActivity } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
@@ -36,6 +37,8 @@ export async function POST(request: Request) {
       ...(audio_prefix_message && { audio_prefix_message }),
       ...(chat_webhook_url && { chat_webhook_url }),
     });
+
+    logActivity({ feedId: feed.id!, level: 'info', category: 'feed', message: 'Feed created' });
 
     return NextResponse.json({ success: true, feed });
   } catch (error: unknown) {

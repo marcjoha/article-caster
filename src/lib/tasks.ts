@@ -6,6 +6,7 @@ interface IngestionPayload {
   url: string;
   origin: 'article' | 'rss' | 'youtube';
   published_at?: string;
+  syndication_title?: string;
 }
 
 const isLocal = () => !process.env.K_SERVICE && process.env.NODE_ENV === 'development';

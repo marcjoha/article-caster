@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createIngestion, getFeedItems, getActiveIngestions } from '@/lib/firestore';
 import { enqueueIngestion } from '@/lib/tasks';
 import { looksLikeRssFeed, looksLikeYoutubeUrl } from '@/lib/utils';
+import { logActivity } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -52,6 +53,8 @@ export async function POST(request: Request) {
       url,
       origin: origin,
     });
+
+    logActivity({ feedId, level: 'info', category: 'ingestion', message: `Ingestion queued (${origin})`, details: url });
 
     return NextResponse.json({ success: true, ingestionId: ingestion.id });
   } catch (error: unknown) {

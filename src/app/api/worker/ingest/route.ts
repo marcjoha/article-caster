@@ -7,11 +7,12 @@ import { applyLoudnessNormalization } from '@/lib/audio';
 import { streamUpload, getFileMetadata, deleteFile } from '@/lib/storage';
 import { createFeedItem, updateFeedItem, getFeedItems, updateIngestion, addProcessedUrl, deleteIngestion, db, Feed } from '@/lib/firestore';
 import { notifyNewEpisode } from '@/lib/chat';
+import { logActivity } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 
 export async function POST(request: Request) {
-  const { ingestionId, feedId, url, origin, published_at } = await request.json();
+  const { ingestionId, feedId, url, origin, published_at, syndication_title } = await request.json();
 
   if (!ingestionId || !feedId || !url) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
   const ingestionDoc = await db.collection('ingestions').doc(ingestionId).get();
   if (!ingestionDoc.exists) {
     console.warn(`Ingestion ${ingestionId} no longer exists (likely cleared). Skipping.`);
+    logActivity({ feedId, level: 'warn', category: 'ingestion', message: 'Ingestion skipped — record was cleared', details: url });
     return NextResponse.json({ skipped: true });
   }
 
@@ -132,6 +134,7 @@ export async function POST(request: Request) {
     if (existingItem) {
       // Another worker already created this item — update it silently instead
       console.warn(`Item for ${url} already exists (${existingItem.id}). Updating in-place instead of creating duplicate.`);
+      logActivity({ feedId, level: 'warn', category: 'ingestion', message: 'Episode updated in-place (dedup)', details: url });
       const oldMediaUrl = existingItem.media_url;
       await updateFeedItem(existingItem.id!, {
         title,
@@ -144,7 +147,7 @@ export async function POST(request: Request) {
         deleteFile(oldMediaUrl).catch(e => console.error("Failed to delete old media file:", e));
       }
     } else {
-      const newItem = await createFeedItem({
+      await createFeedItem({
         feed_id: feedId,
         title,
         description,
@@ -157,7 +160,10 @@ export async function POST(request: Request) {
         created_at: published_at ? new Date(published_at) : new Date(),
       });
 
+      logActivity({ feedId, level: 'info', category: 'ingestion', message: 'Episode ingested', details: url });
+
       // Fire-and-forget: notify Google Chat space about the new episode
+      const publicUrl = process.env.PUBLIC_URL || '';
       notifyNewEpisode({
         title,
         description,
@@ -166,9 +172,11 @@ export async function POST(request: Request) {
         origin: origin || 'article',
         coverImageUrl: feed?.cover_image_url,
         webhookUrl: feed?.chat_webhook_url,
+        mediaUrl,
+        feedUrl: publicUrl ? `${publicUrl}/feed/${feed?.unguessable_slug}.xml` : '',
         feedTitle: feed?.title || '',
-        feedSlug: feed?.unguessable_slug || '',
-        itemId: newItem.id!,
+        feedId,
+        syndicationTitle: syndication_title,
       }).catch(() => {}); // errors already logged inside notifyNewEpisode
     }
 
@@ -181,6 +189,7 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     console.error(`Worker error for ingestion ${ingestionId}:`, error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    logActivity({ feedId, level: 'error', category: 'ingestion', message: `Ingestion failed: ${message}`, details: url });
     
     // Mark as failed
     await updateIngestion(ingestionId, { status: 'failed', error: message });

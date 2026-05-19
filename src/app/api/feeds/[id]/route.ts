@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { updateFeed, deleteFeed, db } from '@/lib/firestore';
 import { uploadFile, deleteFile } from '@/lib/storage';
+import { logActivity } from '@/lib/logger';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -46,6 +47,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (chat_webhook_url !== null) updates.chat_webhook_url = chat_webhook_url;
 
     await updateFeed(id, updates);
+    logActivity({ feedId: id, level: 'info', category: 'feed', message: 'Feed settings updated' });
     
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
@@ -58,6 +60,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    logActivity({ feedId: id, level: 'warn', category: 'feed', message: 'Feed deleted' });
     await deleteFeed(id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAllSyndications, updateSyndication, createIngestion, getFeedItems, getProcessedUrls } from '@/lib/firestore';
 import { enqueueIngestion } from '@/lib/tasks';
+import { logActivity } from '@/lib/logger';
 import Parser from 'rss-parser';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,9 @@ export async function GET() {
     let totalAdded = 0;
 
     for (const syn of syndications) {
+      let addedForSyn = 0;
       try {
+        logActivity({ feedId: syn.feed_id, level: 'info', category: 'rss', message: `RSS sync checking "${syn.title || syn.url}"`, details: syn.url });
         const feed = await parser.parseURL(syn.url);
         
         // Fetch existing items for this feed to avoid re-ingesting
@@ -52,9 +55,11 @@ export async function GET() {
               url: itemUrl,
               origin: 'rss',
               published_at: artificialDate,
+              syndication_title: feed.title || syn.title,
             });
 
             totalAdded++;
+            addedForSyn++;
           }
         }
 
@@ -64,8 +69,14 @@ export async function GET() {
           last_checked_at: new Date(),
         });
 
+        if (addedForSyn > 0) {
+          logActivity({ feedId: syn.feed_id, level: 'info', category: 'rss', message: `RSS sync: queued ${addedForSyn} new episode${addedForSyn > 1 ? 's' : ''} from "${feed.title || syn.url}"`, details: syn.url });
+        }
+
       } catch (feedError) {
         console.error(`Error processing RSS feed ${syn.url}:`, feedError);
+        const errorMsg = feedError instanceof Error ? feedError.message : 'Unknown error';
+        logActivity({ feedId: syn.feed_id, level: 'error', category: 'rss', message: `RSS sync failed: ${errorMsg}`, details: syn.url });
       }
     }
 

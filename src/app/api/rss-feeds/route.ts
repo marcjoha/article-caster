@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createSyndication, deleteSyndication } from '@/lib/firestore';
+import { createSyndication, deleteSyndication, getSyndicationById } from '@/lib/firestore';
 import { enqueueIngestion } from '@/lib/tasks';
 import { looksLikeArticleUrl } from '@/lib/utils';
+import { logActivity } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -20,6 +21,8 @@ export async function POST(request: Request) {
       feed_id: feedId,
       url,
     });
+
+    logActivity({ feedId, level: 'info', category: 'rss', message: 'RSS subscription added', details: url });
 
     try {
       const Parser = (await import('rss-parser')).default;
@@ -73,6 +76,7 @@ export async function POST(request: Request) {
             url: itemUrl,
             origin: 'rss',
             published_at: artificialDate,
+            syndication_title: feed.title,
           });
         }
 
@@ -107,7 +111,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
     }
 
+    const syn = await getSyndicationById(id);
     await deleteSyndication(id);
+
+    if (syn) {
+      logActivity({ feedId: syn.feed_id, level: 'warn', category: 'rss', message: 'RSS subscription removed', details: syn.url });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
@@ -116,4 +125,3 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
