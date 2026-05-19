@@ -1,65 +1,29 @@
 import { NextResponse } from 'next/server';
+import { notifyNewEpisode } from '@/lib/chat';
 
 export async function POST(request: Request) {
   try {
-    const { webhookUrl } = await request.json();
+    const { webhookUrl, feedTitle, coverImageUrl } = await request.json();
 
     if (!webhookUrl) {
       return NextResponse.json({ error: 'No webhook URL provided' }, { status: 400 });
     }
 
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-      body: JSON.stringify({
-        cardsV2: [{
-          cardId: `test-${Date.now()}`,
-          card: {
-            header: {
-              title: '✅ Webhook Connected',
-              subtitle: 'article-caster notifications are working',
-              imageUrl: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/podcast/default/48px.svg',
-              imageType: 'CIRCLE',
-            },
-            sections: [
-              {
-                widgets: [{
-                  textParagraph: {
-                    text: 'New episode notifications will appear here as rich cards with AI-generated summaries, quick-listen links, and subscribe buttons.',
-                  },
-                }],
-              },
-              {
-                widgets: [{
-                  buttonList: {
-                    buttons: [
-                      { text: '▶️ Listen Now', onClick: { openLink: { url: 'https://github.com/marcjoha/article-caster' } } },
-                      { text: '🔔 Subscribe to Feed', onClick: { openLink: { url: 'https://github.com/marcjoha/article-caster' } } },
-                      { text: '📖 Read Original', onClick: { openLink: { url: 'https://github.com/marcjoha/article-caster' } } },
-                    ],
-                  },
-                }],
-              },
-              {
-                widgets: [{
-                  textParagraph: {
-                    text: '💬 <i>Thoughts? Reply to this thread to discuss!</i>',
-                  },
-                }],
-              },
-            ],
-          },
-        }],
-      }),
+    // Use the real notifyNewEpisode function with mock episode data
+    // so the test card matches the exact design of actual notifications.
+    await notifyNewEpisode({
+      title: 'The Future of AI-Powered Development Tools',
+      description: 'An exploration of how AI coding assistants are reshaping software engineering workflows, from automated code review to intelligent debugging.',
+      sourceUrl: 'https://example.com/blog/future-of-ai-dev-tools',
+      durationSeconds: 480,
+      origin: 'article',
+      coverImageUrl: coverImageUrl || undefined,
+      webhookUrl,
+      mediaUrl: 'https://example.com/sample.mp3',
+      feedUrl: 'https://example.com/feed.xml',
+      feedTitle: feedTitle || 'My Podcast',
+      feedId: 'test',
     });
-
-    if (!response.ok) {
-      const body = await response.text();
-      return NextResponse.json(
-        { error: `Webhook returned ${response.status}: ${body}` },
-        { status: 400 },
-      );
-    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

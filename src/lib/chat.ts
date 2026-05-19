@@ -3,6 +3,7 @@
  * Sends a rich card message to a Google Chat space when a new episode is ingested.
  * Opt-in: requires a chat_webhook_url to be configured on the feed.
  */
+import { logActivity } from './logger';
 
 interface EpisodeNotification {
   title: string;
@@ -12,31 +13,21 @@ interface EpisodeNotification {
   origin: string;
   coverImageUrl?: string;
   webhookUrl?: string;
+  mediaUrl: string;
+  feedUrl: string;
   feedTitle: string;
-  feedSlug: string;
-  itemId: string;
+  feedId: string;
+  syndicationTitle?: string;
 }
 
-/**
- * Returns the origin-specific emoji and label for the card header.
- */
-function getOriginHeader(origin: string): { emoji: string; label: string } {
-  switch (origin) {
-    case 'rss':
-      return { emoji: '📡', label: 'New RSS Episode' };
-    case 'youtube':
-      return { emoji: '🎬', label: 'New YouTube Episode' };
-    default:
-      return { emoji: '📰', label: 'New Article Episode' };
-  }
-}
+
 
 /**
  * Posts a rich card notification to Google Chat for a newly ingested episode.
  * The card includes an AI-generated summary, quick-listen and subscribe links,
- * and a prompt to encourage discussion in the chat thread.
+ * and a prompt to encourage discussion.
  *
- * Uses threadKey to group all episodes from the same feed into a single thread.
+ * Each episode is posted as a top-level message.
  *
  * Silently returns if no webhookUrl is provided.
  * Never throws — all errors are caught and logged.
@@ -44,9 +35,7 @@ function getOriginHeader(origin: string): { emoji: string; label: string } {
 export async function notifyNewEpisode(episode: EpisodeNotification): Promise<void> {
   if (!episode.webhookUrl) return;
 
-  const hostUrl = process.env.PUBLIC_URL || '';
   const minutes = Math.round(episode.durationSeconds / 60);
-  const { emoji, label } = getOriginHeader(episode.origin);
 
   let domain = '';
   try {
@@ -57,16 +46,17 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
 
   // --- Card header ---
   const header: Record<string, string> = {
-    title: `${emoji} ${label}`,
-    subtitle: episode.title,
+    title: episode.feedTitle,
     imageType: 'SQUARE',
   };
   if (episode.coverImageUrl) {
     header.imageUrl = episode.coverImageUrl;
   }
 
-  // --- Section 1: Summary + metadata ---
+  // --- Section 1: Title + Summary + metadata ---
   const summaryWidgets: Record<string, unknown>[] = [];
+
+  summaryWidgets.push({ textParagraph: { text: `<b>${episode.title}</b>` } });
 
   if (episode.description) {
     summaryWidgets.push({ textParagraph: { text: episode.description } });
@@ -74,16 +64,30 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
 
   summaryWidgets.push({ divider: {} });
 
+  let sourceLabel: string;
+  switch (episode.origin) {
+    case 'rss':
+      sourceLabel = episode.syndicationTitle
+        ? `Blog post from <b>${episode.syndicationTitle}</b> at <b>${domain}</b>`
+        : `Blog post from <b>${domain}</b>`;
+      break;
+    case 'youtube':
+      sourceLabel = 'Video from <b>YouTube</b>';
+      break;
+    default:
+      sourceLabel = `Article from <b>${domain}</b>`;
+  }
+
   summaryWidgets.push({
     decoratedText: {
-      startIcon: { knownIcon: 'MAP_PIN' },
-      text: `Source: <b>${domain}</b>`,
+      startIcon: { materialIcon: { name: 'language' } },
+      text: sourceLabel,
     },
   });
 
   summaryWidgets.push({
     decoratedText: {
-      startIcon: { knownIcon: 'CLOCK' },
+      startIcon: { materialIcon: { name: 'schedule' } },
       text: `Duration: ${minutes} min`,
     },
   });
@@ -91,24 +95,27 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
   // --- Section 2: Action buttons ---
   const buttons: Record<string, unknown>[] = [];
 
-  if (hostUrl && episode.itemId) {
+  if (episode.mediaUrl) {
     buttons.push({
-      text: '▶️ Listen Now',
-      onClick: { openLink: { url: `${hostUrl}/media/${episode.itemId}.mp3` } },
-    });
-  }
-
-  if (hostUrl && episode.feedSlug) {
-    buttons.push({
-      text: '🔔 Subscribe to Feed',
-      onClick: { openLink: { url: `${hostUrl}/feed/${episode.feedSlug}.xml` } },
+      text: 'Listen',
+      icon: { materialIcon: { name: 'headphones' } },
+      onClick: { openLink: { url: episode.mediaUrl } },
     });
   }
 
   buttons.push({
-    text: '📖 Read Original',
+    text: 'Read original',
+    icon: { materialIcon: { name: 'article' } },
     onClick: { openLink: { url: episode.sourceUrl } },
   });
+
+  if (episode.feedUrl) {
+    buttons.push({
+      text: 'Subscribe to the podcast',
+      icon: { materialIcon: { name: 'podcasts' } },
+      onClick: { openLink: { url: episode.feedUrl } },
+    });
+  }
 
   const actionWidgets: Record<string, unknown>[] = [
     { buttonList: { buttons } },
@@ -116,7 +123,12 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
 
   // --- Section 3: Discussion prompt ---
   const discussionWidgets: Record<string, unknown>[] = [
-    { textParagraph: { text: '💬 <i>Thoughts? Reply to this thread to discuss!</i>' } },
+    {
+      decoratedText: {
+        startIcon: { materialIcon: { name: 'chat_bubble' } },
+        text: '<i>Thoughts? Reply to this thread!</i>',
+      },
+    },
   ];
 
   // --- Build sections ---
@@ -126,40 +138,66 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
     { widgets: discussionWidgets },
   ];
 
-  // --- Thread grouping: append messageReplyOption to webhook URL,
-  // and include threadKey in the JSON body ---
-  let webhookUrlWithThread = episode.webhookUrl;
-  if (episode.feedSlug) {
-    const separator = episode.webhookUrl.includes('?') ? '&' : '?';
-    webhookUrlWithThread = `${episode.webhookUrl}${separator}messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD`;
-  }
+  const payload: Record<string, unknown> = {
+    cardsV2: [{
+      cardId: `episode-${Date.now()}`,
+      card: {
+        header,
+        sections,
+      },
+    }],
+  };
 
-  try {
-    const payload: Record<string, unknown> = {
-      cardsV2: [{
-        cardId: `episode-${Date.now()}`,
-        card: {
-          header,
-          sections,
-        },
-      }],
-    };
+  const body = JSON.stringify(payload);
+  const maxAttempts = 3;
 
-    // Thread grouping: threadKey goes in the JSON body
-    if (episode.feedSlug) {
-      payload.thread = { threadKey: episode.feedSlug };
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(episode.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+        body,
+      });
+
+      if (response.ok) {
+        logActivity({ feedId: episode.feedId, level: 'info', category: 'chat', message: 'Chat notification sent', details: episode.sourceUrl });
+        return;
+      }
+
+      const responseBody = await response.text();
+      let reason = responseBody.slice(0, 200);
+      try {
+        const parsed = JSON.parse(responseBody);
+        if (parsed?.error?.message) reason = parsed.error.message;
+      } catch { /* use raw body */ }
+
+      // 4xx = permanent failure, don't retry
+      if (response.status < 500) {
+        console.error(`Google Chat webhook failed (${response.status}):`, responseBody);
+        logActivity({ feedId: episode.feedId, level: 'error', category: 'chat', message: `Chat webhook failed (${response.status}): ${reason}`, details: episode.sourceUrl });
+        return;
+      }
+
+      // 5xx = transient, retry if attempts remain
+      if (attempt === maxAttempts) {
+        console.error(`Google Chat webhook failed after ${maxAttempts} attempts (${response.status}):`, responseBody);
+        logActivity({ feedId: episode.feedId, level: 'error', category: 'chat', message: `Chat webhook failed after ${maxAttempts} retries (${response.status}): ${reason}`, details: episode.sourceUrl });
+        return;
+      }
+
+      // Exponential backoff: 2s, 4s, 8s
+      await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt - 1)));
+
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        console.error('Google Chat webhook error:', error);
+        const msg = error instanceof Error ? error.message : 'Unknown error';
+        logActivity({ feedId: episode.feedId, level: 'error', category: 'chat', message: `Chat webhook error after ${maxAttempts} retries: ${msg}`, details: episode.sourceUrl });
+        return;
+      }
+
+      // Network error — retry with backoff
+      await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt - 1)));
     }
-
-    const response = await fetch(webhookUrlWithThread, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      console.error(`Google Chat webhook failed (${response.status}):`, await response.text());
-    }
-  } catch (error) {
-    console.error('Google Chat webhook error:', error);
   }
 }

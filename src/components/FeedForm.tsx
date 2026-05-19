@@ -92,7 +92,7 @@ export default function FeedForm({
       const res = await fetch('/api/feeds/test-webhook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ webhookUrl: chatWebhookUrl }),
+        body: JSON.stringify({ webhookUrl: chatWebhookUrl, feedTitle: title, coverImageUrl: existingCoverUrl }),
       });
       const data = await res.json();
       if (res.ok) {
