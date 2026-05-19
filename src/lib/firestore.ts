@@ -83,7 +83,13 @@ export const deleteFeed = async (feedId: string) => {
     batch.delete(doc.ref);
   });
 
-  // 4. Delete the feed itself (cover image + document) — last, so retries can re-discover children
+  // 4. Cascade: delete all log entries
+  const logsSnapshot = await db.collection('logs').where('feed_id', '==', feedId).get();
+  logsSnapshot.docs.forEach(doc => {
+    batch.delete(doc.ref);
+  });
+
+  // 5. Delete the feed itself (cover image + document) — last, so retries can re-discover children
   const feedDoc = await db.collection('feeds').doc(feedId).get();
   if (feedDoc.exists) {
     const feedData = feedDoc.data() as Feed;
@@ -301,7 +307,87 @@ export const updateSyndication = async (id: string, updates: Partial<Pick<Syndic
   await db.collection('syndications').doc(id).update(updates);
 };
 
+export const getSyndicationById = async (id: string): Promise<Syndication | null> => {
+  const doc = await db.collection('syndications').doc(id).get();
+  if (!doc.exists) return null;
+  const data = doc.data()!;
+  return {
+    ...data,
+    id: doc.id,
+    created_at: data.created_at.toDate(),
+    last_checked_at: data.last_checked_at ? data.last_checked_at.toDate() : undefined,
+  } as Syndication;
+};
+
 export const deleteSyndication = async (id: string) => {
   await db.collection('syndications').doc(id).delete();
 };
 
+// --- Activity Log ---
+
+export interface LogEntry {
+  id?: string;
+  feed_id: string;
+  level: 'info' | 'warn' | 'error';
+  category: string;
+  message: string;
+  details?: string;
+  created_at: Date;
+}
+
+const LOG_RETENTION_CAP = 500;
+
+export const createLogEntry = async (entry: Omit<LogEntry, 'id' | 'created_at'>) => {
+  const docRef = db.collection('logs').doc();
+  const data: LogEntry = {
+    ...entry,
+    id: docRef.id,
+    created_at: new Date(),
+  };
+  await docRef.set(data);
+
+  // Fire-and-forget retention purge: delete oldest entries beyond cap
+  purgeOldLogEntries(entry.feed_id).catch(e =>
+    console.error('Log retention purge failed:', e)
+  );
+
+  return data;
+};
+
+async function purgeOldLogEntries(feedId: string): Promise<void> {
+  const snapshot = await db.collection('logs')
+    .where('feed_id', '==', feedId)
+    .orderBy('created_at', 'desc')
+    .offset(LOG_RETENTION_CAP)
+    .get();
+
+  if (snapshot.empty) return;
+
+  const batch = db.batch();
+  snapshot.docs.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+}
+
+export const getLogEntries = async (feedId: string, limit = 200): Promise<LogEntry[]> => {
+  const snapshot = await db.collection('logs')
+    .where('feed_id', '==', feedId)
+    .orderBy('created_at', 'desc')
+    .limit(limit)
+    .get();
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return { ...data, created_at: data.created_at.toDate() } as LogEntry;
+  });
+};
+
+export const deleteLogsByFeedId = async (feedId: string, details?: string): Promise<void> => {
+  let query: FirebaseFirestore.Query = db.collection('logs').where('feed_id', '==', feedId);
+  if (details) {
+    query = query.where('details', '==', details);
+  }
+  const snapshot = await query.get();
+  if (snapshot.empty) return;
+  const batch = db.batch();
+  snapshot.docs.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+};

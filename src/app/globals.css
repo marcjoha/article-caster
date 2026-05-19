@@ -282,3 +282,96 @@ body {
 .btn-success:hover {
   background-color: #059669;
 }
+
+/* --- Activity Log --- */
+
+
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.log-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+  position: relative;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-entry-error {
+}
+
+.log-entry-url {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 4rem;
+}
+
+.log-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.log-category {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
+.log-category-rss {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+}
+
+.log-category-chat {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+}
+
+.log-category-feed {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #c4b5fd;
+}
+
+.log-category-episode {
+  background-color: rgba(236, 72, 153, 0.15);
+  color: #f9a8d4;
+}
+
+.log-timestamp {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  position: absolute;
+  top: 0.75rem;
+  right: 0;
+  white-space: nowrap;
+}
+
+.log-message {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.log-entry-error .log-message {
+  color: #f87171;
+}
