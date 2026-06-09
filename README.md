@@ -7,18 +7,16 @@ A personal podcast feed generator that converts web articles into spoken-word au
 
 - **Article-to-Audio Ingestion** — Paste any article URL to extract, clean (with LLM-based boilerplate removal), and convert it into a podcast-grade MP3 episode (processed asynchronously via Cloud Tasks).
 - **Content Quality Gate** — Extracted content is validated by Gemini before reaching TTS. Login walls, paywalls, error pages, and other non-article content are automatically rejected with a clear error, protecting podcast subscribers from garbage episodes.
-- **YouTube Video Ingestion** — Paste any YouTube URL to extract the audio and add it to your podcast feed (requires local development environment due to datacenter IP blocking).
+- **YouTube Video Ingestion** — Paste any YouTube URL to preserve and download the original video (targeting 720p resolution or lower) in MP4 format, and add it to your mixed audio/video podcast feed (requires local development environment due to datacenter IP blocking).
 - **AI Episode Summaries** — Each episode automatically gets a concise, Gemini-generated description displayed in podcast players.
 - **Audio Mastering** — Encodes MP3 (128 kbps CBR, 44.1 kHz mono) and applies loudness normalization (-16 LUFS, -1.0 dBTP) via FFmpeg for professional podcast audio.
 - **RSS Syndication** — Subscribe your custom feeds to external RSS sources to automatically ingest new blog posts on a daily schedule.
 - **Podcast Feed Management** — Create and manage multiple podcast feeds, each with its own title, description, author, cover image, TTS voice, and custom audio prefix message.
-- **Private RSS Feeds** — Each feed gets a unique, unguessable URL that can be subscribed to in any podcast client.
-- **Google Chat Notifications** — Optionally post rich episode cards to a Google Chat space. Cards show origin type (📰 Article / 📡 RSS / 🎬 YouTube), AI-generated summary, source domain, duration, and one-tap buttons for listening, subscribing, and reading the original. Episodes from the same feed are threaded together, with a prompt encouraging discussion.
-
+- **Public & Private RSS Feeds** — Each feed gets a unique, unguessable URL. A beautiful, custom public subscription landing page (`/subscribe/[slug]`) allows subscribers to easily subscribe on Apple Podcasts, Pocket Casts, Overcast, or copy the raw RSS XML feed.
+- **Google Chat Notifications** — Optionally post rich episode cards to a Google Chat space. Cards show origin type (📰 Article / 📡 RSS / 🎬 YouTube), AI-generated summary, source domain, duration, and direct button links to watch/listen, subscribe on the public landing page, and watch/read the original content. Episodes from the same feed are threaded together, with a prompt encouraging discussion.
 - **Activity Log** — Per-feed activity log tracking ingestion events, RSS sync results, Chat notification outcomes, and feed management actions. Auto-refreshing modal with URL filtering and log clearing capabilities.
-
 - **Admin Authentication** — Simple passcode-based login to protect the admin dashboard.
-- **Content Management** — Play/listen to generated audio directly in the admin UI, and remove items from feeds.
+- **Content Management** — Play/listen to generated audio or watch original video via a premium glassmorphic popup overlay video player directly in the admin UI, and remove items from feeds.
 
 ## Architecture
 
