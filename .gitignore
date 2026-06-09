@@ -44,3 +44,6 @@ yarn-error.log*
 next-env.d.ts
 test_*
 reprocess_audio.*
+
+# local cli tools
+/.antigravitycli/
