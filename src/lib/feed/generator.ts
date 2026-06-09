@@ -26,9 +26,16 @@ export const generatePodcastRss = (feed: Feed, items: FeedItem[], hostUrl: strin
   });
 
   items.forEach(item => {
-    const itemDescription = item.description.substring(0, 4000);
+    let itemDescription = item.description.substring(0, 4000);
+    if (item.type === 'video' && feed.audio_prefix_message) {
+      itemDescription = `Intro: ${feed.audio_prefix_message}\n\n` + itemDescription;
+    }
+
     const isWav = item.media_url.toLowerCase().endsWith('.wav');
-    const mediaProxyUrl = `${hostUrl}/media/${item.id!}.${isWav ? 'wav' : 'mp3'}`;
+    const isVideo = item.type === 'video' || item.media_url.toLowerCase().endsWith('.mp4');
+    
+    const fileExt = isVideo ? 'mp4' : (isWav ? 'wav' : 'mp3');
+    const mediaProxyUrl = `${hostUrl}/media/${item.id!}.${fileExt}`;
     
     podcast.addItem({
       title: item.title,
@@ -39,7 +46,7 @@ export const generatePodcastRss = (feed: Feed, items: FeedItem[], hostUrl: strin
       enclosure: {
         url: mediaProxyUrl,
         size: item.size_bytes,
-        type: isWav ? 'audio/wav' : 'audio/mpeg',
+        type: isVideo ? 'video/mp4' : (isWav ? 'audio/wav' : 'audio/mpeg'),
       },
       itunesDuration: item.duration_seconds,
       itunesSummary: itemDescription,

@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import Image from 'next/image';
 import { getFeeds, getFeedItems, getSyndications } from '@/lib/firestore';
 import FeedForm from '@/components/FeedForm';
-import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay } from '@/components/ClientButtons';
+import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay, WatchVideoButton } from '@/components/ClientButtons';
 import IngestionTabs from '@/components/IngestionTabs';
 import FeedSelector from '@/components/FeedSelector';
 import ProcessingList from '@/components/ProcessingList';
@@ -177,9 +177,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                             </div>
                           </td>
                           <td className="article-audio-cell">
-                            <audio controls>
-                              <source src={item.media_url} type={item.media_url.toLowerCase().endsWith('.wav') ? 'audio/wav' : 'audio/mpeg'} />
-                            </audio>
+                            {item.type === 'video' || item.media_url.toLowerCase().endsWith('.mp4') ? (
+                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <WatchVideoButton videoUrl={item.media_url} title={item.title} />
+                              </div>
+                            ) : (
+                              <audio controls>
+                                <source src={item.media_url} type={item.media_url.toLowerCase().endsWith('.wav') ? 'audio/wav' : 'audio/mpeg'} />
+                              </audio>
+                            )}
                           </td>
                           <td className="article-actions-cell">
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>

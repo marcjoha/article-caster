@@ -10,6 +10,7 @@ import { notifyNewEpisode } from '@/lib/chat';
 import { logActivity } from '@/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
+import { getProductionUrl } from '@/lib/gcloud';
 
 export async function POST(request: Request) {
   const { ingestionId, feedId, url, origin, published_at, syndication_title } = await request.json();
@@ -39,43 +40,23 @@ export async function POST(request: Request) {
 
     let title = '';
     let description = '';
-    let rawAudioInput: Buffer | string | (Buffer | string)[];
+    let rawAudioInput: Buffer | string | (Buffer | string)[] | null = null;
     let durationSeconds = 0;
     
+    const isVideo = origin === 'youtube';
     const fileId = uuidv4();
-    const fileExtension = 'mp3';
-    const contentType = 'audio/mpeg';
+    const fileExtension = isVideo ? 'mp4' : 'mp3';
+    const contentType = isVideo ? 'video/mp4' : 'audio/mpeg';
 
     if (origin === 'youtube') {
-      await updateIngestion(ingestionId, { status: '1/4: Downloading YouTube audio...' });
+      await updateIngestion(ingestionId, { status: '1/4: Downloading YouTube video...' });
       const result = await extractYoutubeAudio(url);
       title = result.title;
       durationSeconds = result.durationSeconds;
       downloadedFilePath = result.filePath;
       
-      const inputs: (Buffer | string)[] = [];
-      const voicePreference = feed?.tts_voice;
-
-      const domain = new URL(url).hostname.replace(/^www\./, '');
-      let prefixText = `This is a YouTube video titled ${title} from ${domain}.\n\n`;
-      if (feed?.audio_prefix_message) {
-        prefixText = `${feed.audio_prefix_message}\n\n` + prefixText;
-      }
-
-      await updateIngestion(ingestionId, { status: '2/4: Generating prefix audio...' });
-
-      // Run summarization concurrently with TTS prefix generation
-      const [prefixTts, summary] = await Promise.all([
-        synthesizeSpeech({ textBlocks: [prefixText], language: 'en', voicePreference }),
-        summarizeContent(title, result.description),
-      ]);
-      description = summary;
-      inputs.push(prefixTts.audioBuffer);
-      durationSeconds += prefixTts.durationSeconds;
-      
-      inputs.push(result.filePath);
-      rawAudioInput = inputs.length === 1 ? inputs[0] : inputs;
-
+      await updateIngestion(ingestionId, { status: '2/4: Generating summary...' });
+      description = await summarizeContent(title, result.description);
     } else {
       await updateIngestion(ingestionId, { status: '1/4: Extracting article...' });
       const voicePreference = feed?.tts_voice;
@@ -103,12 +84,20 @@ export async function POST(request: Request) {
       durationSeconds = ttsResult.durationSeconds;
     }
     
-    await updateIngestion(ingestionId, { status: `3/4: Mastering & Streaming ${fileExtension.toUpperCase()}...` });
+    await updateIngestion(ingestionId, { status: isVideo ? `3/4: Streaming ${fileExtension.toUpperCase()}...` : `3/4: Mastering & Streaming ${fileExtension.toUpperCase()}...` });
     
     const { writeStream, uploadPromise } = streamUpload(`content/${fileId}.${fileExtension}`, contentType);
     
-    // Process audio and pipe to write stream
-    await applyLoudnessNormalization(rawAudioInput, fileExtension as 'wav' | 'mp3', writeStream);
+    if (isVideo) {
+      if (!downloadedFilePath) {
+        throw new Error('Downloaded video file path is missing');
+      }
+      const readStream = fs.createReadStream(downloadedFilePath);
+      readStream.pipe(writeStream);
+    } else {
+      // Process audio and pipe to write stream
+      await applyLoudnessNormalization(rawAudioInput!, fileExtension as 'wav' | 'mp3', writeStream);
+    }
     
     // Wait for the upload to complete
     const mediaUrl = await uploadPromise;
@@ -124,7 +113,7 @@ export async function POST(request: Request) {
       // Upload appeared to succeed but file is not publicly reachable — clean up
       // the orphaned GCS object and fail the ingestion so it can be retried.
       deleteFile(mediaUrl).catch(e => console.error('Cleanup of unreachable media failed:', e));
-      throw new Error(`Audio file uploaded but not publicly accessible (HTTP ${headResponse.status}). Cleaned up orphan and failing ingestion for retry.`);
+      throw new Error(`Media file uploaded but not publicly accessible (HTTP ${headResponse.status}). Cleaned up orphan and failing ingestion for retry.`);
     }
 
     await updateIngestion(ingestionId, { status: '4/4: Saving episode...' });
@@ -156,7 +145,7 @@ export async function POST(request: Request) {
         description,
         source_url: url,
         media_url: mediaUrl,
-        type: 'audio',
+        type: isVideo ? 'video' : 'audio',
         size_bytes: sizeBytes,
         duration_seconds: durationSeconds,
         origin: origin || 'article',
@@ -166,8 +155,7 @@ export async function POST(request: Request) {
       const contentType = origin === 'youtube' ? 'YouTube video' : origin === 'rss' ? 'Blog post' : 'Article';
       logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType} ingested and podcast episode created`, details: url });
 
-      // Fire-and-forget: notify Google Chat space about the new episode
-      const publicUrl = process.env.PUBLIC_URL || '';
+      const publicUrl = getProductionUrl();
       notifyNewEpisode({
         title,
         description,

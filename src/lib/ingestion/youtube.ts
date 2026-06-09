@@ -12,6 +12,7 @@ export interface YoutubeExtractionResult {
   description: string;
   filePath: string;
   durationSeconds: number;
+  isVideo?: boolean;
 }
 
 export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractionResult> {
@@ -35,12 +36,12 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
   const description = metadata.description || '';
   const durationSeconds = metadata.duration || 0;
 
-  // 2. Download audio
+  // 2. Download video (max 720p) and audio merged into MP4
   const tmpDir = os.tmpdir();
-  const outputPath = path.join(tmpDir, `yt-${Date.now()}-${Math.random().toString(36).substring(7)}.webm`);
+  const outputPath = path.join(tmpDir, `yt-${Date.now()}-${Math.random().toString(36).substring(7)}.mp4`);
 
   const downloadArgs = [
-    '-f', 'bestaudio', // Download best audio format
+    '-f', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[ext=mp4]',
     '-o', outputPath,
     '--no-playlist',
     '--js-runtimes', 'node'
@@ -58,6 +59,7 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
     title,
     description,
     filePath: outputPath,
-    durationSeconds
+    durationSeconds,
+    isVideo: true
   };
 }

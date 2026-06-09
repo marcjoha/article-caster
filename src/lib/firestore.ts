@@ -33,7 +33,7 @@ export interface FeedItem {
   description: string;
   source_url: string;
   media_url: string;
-  type: 'audio';
+  type: 'audio' | 'video';
   size_bytes: number;
   duration_seconds: number;
   created_at: Date;

@@ -1,3 +1,4 @@
+
 /**
  * Formats a date as YYYY-MM-DD
  */
@@ -93,3 +94,4 @@ export function looksLikeArticleUrl(url: string): boolean {
     return false;
   }
 }
+
