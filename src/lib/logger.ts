@@ -12,6 +12,10 @@ export async function logActivity(entry: {
   message: string;
   details?: string;
 }): Promise<void> {
+  // Skip Firestore writes for missing/empty feedIds (e.g. test-webhook calls).
+  // This prevents orphan log entries referencing non-existent feeds.
+  if (!entry.feedId) return;
+
   try {
     await createLogEntry({
       feed_id: entry.feedId,

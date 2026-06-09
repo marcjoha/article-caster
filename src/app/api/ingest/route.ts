@@ -54,7 +54,8 @@ export async function POST(request: Request) {
       origin: origin,
     });
 
-    logActivity({ feedId, level: 'info', category: 'ingestion', message: `Ingestion queued (${origin})`, details: url });
+    const contentType = origin === 'youtube' ? 'YouTube video' : origin === 'rss' ? 'Blog post' : 'Article';
+    logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType} queued for ingestion`, details: url });
 
     return NextResponse.json({ success: true, ingestionId: ingestion.id });
   } catch (error: unknown) {

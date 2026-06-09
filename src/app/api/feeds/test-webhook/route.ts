@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       mediaUrl: 'https://example.com/sample.mp3',
       feedUrl: 'https://example.com/feed.xml',
       feedTitle: feedTitle || 'My Podcast',
-      feedId: 'test',
+      feedId: '',
     });
 
     return NextResponse.json({ success: true });

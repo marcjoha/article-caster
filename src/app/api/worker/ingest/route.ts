@@ -34,6 +34,9 @@ export async function POST(request: Request) {
     const feedSnapshot = await db.collection('feeds').doc(feedId).get();
     const feed = feedSnapshot.data() as Feed | undefined;
 
+    const contentType_ = origin === 'youtube' ? 'YouTube video' : origin === 'rss' ? 'Blog post' : 'Article';
+    logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType_} ingestion started`, details: url });
+
     let title = '';
     let description = '';
     let rawAudioInput: Buffer | string | (Buffer | string)[];
@@ -160,7 +163,8 @@ export async function POST(request: Request) {
         created_at: published_at ? new Date(published_at) : new Date(),
       });
 
-      logActivity({ feedId, level: 'info', category: 'ingestion', message: 'Episode ingested', details: url });
+      const contentType = origin === 'youtube' ? 'YouTube video' : origin === 'rss' ? 'Blog post' : 'Article';
+      logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType} ingested and podcast episode created`, details: url });
 
       // Fire-and-forget: notify Google Chat space about the new episode
       const publicUrl = process.env.PUBLIC_URL || '';
