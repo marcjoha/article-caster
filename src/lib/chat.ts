@@ -52,7 +52,6 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
   if (episode.coverImageUrl) {
     header.imageUrl = episode.coverImageUrl;
   }
-
   // --- Section 1: Title + Summary + metadata ---
   const summaryWidgets: Record<string, unknown>[] = [];
 
@@ -94,26 +93,39 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
 
   // --- Section 2: Action buttons ---
   const buttons: Record<string, unknown>[] = [];
+  const isVideo = episode.origin === 'youtube' || episode.mediaUrl.toLowerCase().endsWith('.mp4');
 
   if (episode.mediaUrl) {
     buttons.push({
-      text: 'Listen',
-      icon: { materialIcon: { name: 'headphones' } },
+      text: isVideo ? 'Watch this episode' : 'Listen to this episode',
+      icon: { materialIcon: { name: isVideo ? 'play_circle' : 'headphones' } },
       onClick: { openLink: { url: episode.mediaUrl } },
     });
   }
 
   buttons.push({
-    text: 'Read original',
-    icon: { materialIcon: { name: 'article' } },
+    text: isVideo ? 'Watch original' : 'Read original',
+    icon: { materialIcon: { name: isVideo ? 'smart_display' : 'article' } },
     onClick: { openLink: { url: episode.sourceUrl } },
   });
 
   if (episode.feedUrl) {
+    let subscribeUrl = episode.feedUrl;
+    try {
+      const parsedFeedUrl = new URL(episode.feedUrl);
+      const pathParts = parsedFeedUrl.pathname.split('/');
+      const slug = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+      if (slug) {
+        subscribeUrl = `${parsedFeedUrl.origin}/subscribe/${slug}`;
+      }
+    } catch (e) {
+      console.error('Failed to parse feedUrl for subscription landing page:', e);
+    }
+
     buttons.push({
       text: 'Subscribe to the podcast',
       icon: { materialIcon: { name: 'podcasts' } },
-      onClick: { openLink: { url: episode.feedUrl } },
+      onClick: { openLink: { url: subscribeUrl } },
     });
   }
 

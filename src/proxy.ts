@@ -3,7 +3,11 @@ import type { NextRequest } from 'next/server';
 
 export function proxy(request: NextRequest) {
   // Public routes
-  if (request.nextUrl.pathname.startsWith('/feed/') || request.nextUrl.pathname.startsWith('/media/')) {
+  if (
+    request.nextUrl.pathname.startsWith('/feed/') ||
+    request.nextUrl.pathname.startsWith('/media/') ||
+    request.nextUrl.pathname.startsWith('/subscribe/')
+  ) {
     return NextResponse.next();
   }
 

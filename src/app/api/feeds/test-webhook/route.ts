@@ -9,6 +9,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No webhook URL provided' }, { status: 400 });
     }
 
+    const host = request.headers.get('host') || 'localhost:3000';
+    const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
+    const hostUrl = `${protocol}://${host}`;
+
     // Use the real notifyNewEpisode function with mock episode data
     // so the test card matches the exact design of actual notifications.
     await notifyNewEpisode({
@@ -20,7 +24,7 @@ export async function POST(request: Request) {
       coverImageUrl: coverImageUrl || undefined,
       webhookUrl,
       mediaUrl: 'https://example.com/sample.mp3',
-      feedUrl: 'https://example.com/feed.xml',
+      feedUrl: `${hostUrl}/feed/mock-test-feed.xml`,
       feedTitle: feedTitle || 'My Podcast',
       feedId: '',
     });
@@ -32,3 +36,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
