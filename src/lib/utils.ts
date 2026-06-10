@@ -95,3 +95,77 @@ export function looksLikeArticleUrl(url: string): boolean {
   }
 }
 
+/**
+ * Resolves a URL to a friendly "domain / article title" string.
+ * Uses the matched episode/item title if available, otherwise falls back
+ * to a clean, human-readable representation derived from the URL domain and path.
+ */
+export function getUrlDisplayString(
+  urlStr: string,
+  episodes?: { source_url: string; title: string }[]
+): string {
+  if (!urlStr) return '';
+  
+  // 1. Try to find a matched episode
+  if (episodes) {
+    const match = episodes.find(e => e.source_url === urlStr);
+    if (match) {
+      let domain = '';
+      try {
+        domain = new URL(urlStr).hostname.replace(/^www\./, '');
+      } catch {
+        domain = urlStr;
+      }
+      return `${domain} / ${match.title}`;
+    }
+  }
+
+  // 2. Fall back to generating a friendly domain / title string from the URL
+  try {
+    const url = new URL(urlStr);
+    const domain = url.hostname.replace(/^www\./, '');
+    
+    // For YouTube videos
+    if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {
+      let videoId = '';
+      if (url.hostname.includes('youtu.be')) {
+        videoId = url.pathname.slice(1);
+      } else {
+        videoId = url.searchParams.get('v') || '';
+      }
+      if (videoId) {
+        return `${domain} / Video ID: ${videoId}`;
+      }
+    }
+    
+    // Extract last non-empty path segment
+    const segments = url.pathname.split('/').filter(Boolean);
+    if (segments.length > 0) {
+      const lastSegment = segments[segments.length - 1];
+      // Clean up the segment (replace hyphens/underscores with spaces, decode URI, capitalize)
+      let cleaned = decodeURIComponent(lastSegment)
+        .replace(/[-_]+/g, ' ')
+        .trim();
+      
+      if (cleaned) {
+        // Capitalize first letter of each word
+        cleaned = cleaned
+          .split(/\s+/)
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        // Truncate if extremely long
+        if (cleaned.length > 60) {
+          cleaned = cleaned.slice(0, 57) + '...';
+        }
+        return `${domain} / ${cleaned}`;
+      }
+    }
+    
+    return `${domain} / Home`;
+  } catch {
+    return urlStr;
+  }
+}
+
+

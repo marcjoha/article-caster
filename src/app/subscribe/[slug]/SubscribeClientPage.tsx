@@ -126,10 +126,6 @@ export default function SubscribeClientPage({ feed, hostUrl }: SubscribeClientPa
           font-size: 0.875rem;
           line-height: 1.45;
           color: #94a3b8;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
         }
 
         .section-title {

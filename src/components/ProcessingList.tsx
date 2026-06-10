@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, getUrlDisplayString } from '@/lib/utils';
 import ConfirmDialog from './ConfirmDialog';
 
 type Ingestion = {
@@ -14,7 +14,12 @@ type Ingestion = {
   origin?: 'article' | 'rss' | 'youtube';
 };
 
-export default function ProcessingList({ feedId }: { feedId: string }) {
+interface ProcessingListProps {
+  feedId: string;
+  episodes?: { title: string; source_url: string }[];
+}
+
+export default function ProcessingList({ feedId, episodes }: ProcessingListProps) {
   const [ingestions, setIngestions] = useState<Ingestion[]>([]);
   const [isClearing, setIsClearing] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
@@ -141,7 +146,9 @@ export default function ProcessingList({ feedId }: { feedId: string }) {
             {ingestions.map(ing => (
               <tr key={ing.id}>
                 <td>
-                  <div className="article-title" style={{ color: '#cbd5e1' }}>{ing.url}</div>
+                  <div className="article-title" style={{ color: '#cbd5e1' }}>
+                    {getUrlDisplayString(ing.url, episodes)}
+                  </div>
                   <div className="article-meta">
                     {formatDateTime(ing.created_at)}
                   </div>

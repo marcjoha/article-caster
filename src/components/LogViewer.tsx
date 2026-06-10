@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ConfirmDialog from './ConfirmDialog';
+import { getUrlDisplayString as getDisplayString } from '@/lib/utils';
 
 interface LogEntry {
   id: string;
@@ -11,8 +12,14 @@ interface LogEntry {
   created_at: string;
 }
 
+interface LogViewerEpisode {
+  title: string;
+  source_url: string;
+}
+
 interface LogViewerProps {
   feedId: string;
+  episodes?: LogViewerEpisode[];
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -27,17 +34,24 @@ function formatRelativeTime(dateStr: string): string {
   return `${days}d ago`;
 }
 
-function shortenUrl(url: string): string {
+function formatAbsoluteTime(dateStr: string): string {
   try {
-    const u = new URL(url);
-    return u.hostname.replace(/^www\./, '') + u.pathname;
+    const d = new Date(dateStr);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   } catch {
-    return url;
+    return dateStr;
   }
 }
 
-export default function LogViewer({ feedId }: LogViewerProps) {
+
+
+export default function LogViewer({ feedId, episodes }: LogViewerProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  const getUrlDisplayString = useCallback((url: string): string => {
+    return getDisplayString(url, episodes);
+  }, [episodes]);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterUrl, setFilterUrl] = useState('');
@@ -119,7 +133,7 @@ export default function LogViewer({ feedId }: LogViewerProps) {
   }, [feedId, filterUrl]);
 
   const clearMessage = filterUrl
-    ? `Delete all log entries for ${shortenUrl(filterUrl)}? This cannot be undone.`
+    ? `Delete all log entries for ${getUrlDisplayString(filterUrl)}? This cannot be undone.`
     : 'Delete all log entries for this feed? This cannot be undone.';
 
   return (
@@ -143,7 +157,7 @@ export default function LogViewer({ feedId }: LogViewerProps) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
           padding: '1rem'
         }}>
-          <div className="card" style={{ padding: '2rem', width: '100%', maxWidth: '600px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="card" style={{ padding: '2rem', width: '100%', maxWidth: '1100px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <h2 style={{ marginTop: 0, marginBottom: 0 }}>Activity Log</h2>
               <div style={{ flex: 1 }} />
@@ -169,7 +183,7 @@ export default function LogViewer({ feedId }: LogViewerProps) {
                   >
                     <option value="">All events</option>
                     {uniqueUrls.map(url => (
-                      <option key={url} value={url}>{shortenUrl(url)}</option>
+                      <option key={url} value={url}>{getUrlDisplayString(url)}</option>
                     ))}
                   </select>
                 )}
@@ -196,17 +210,22 @@ export default function LogViewer({ feedId }: LogViewerProps) {
               </div>
             ) : (
               <div className="log-list">
-                {filteredEntries.map(entry => (
-                  <div key={entry.id} className={`log-entry ${entry.level === 'error' ? 'log-entry-error' : ''}`}>
-                    {entry.details && !filterUrl && (
-                      <div className="log-entry-url">{shortenUrl(entry.details)}</div>
-                    )}
-                    <div className="log-entry-header">
-                      <span className="log-timestamp">{formatRelativeTime(entry.created_at)}</span>
+                {filteredEntries.map(entry => {
+                  const resolvedUrlString = entry.details ? getUrlDisplayString(entry.details) : '—';
+                  return (
+                    <div key={entry.id} className={`log-entry ${entry.level === 'error' ? 'log-entry-error' : ''}`}>
+                      <span className="log-timestamp">
+                        {formatAbsoluteTime(entry.created_at)} ({formatRelativeTime(entry.created_at)})
+                      </span>
+                      <div className="log-entry-url" title={entry.details ? resolvedUrlString : ''}>
+                        {resolvedUrlString}
+                      </div>
+                      <div className="log-message" title={entry.message}>
+                        {entry.message}
+                      </div>
                     </div>
-                    <div className="log-message">{entry.message}</div>
-                  </div>
-                ))}
+                  );
+                })}
                 {filteredEntries.length === 0 && (
                   <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                     No events for this URL.

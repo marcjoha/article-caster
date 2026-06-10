@@ -294,12 +294,12 @@ body {
 }
 
 .log-entry {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.75rem 0;
+  display: grid;
+  grid-template-columns: minmax(210px, max-content) minmax(180px, 1fr) 1.5fr;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 0.6rem 0;
   border-bottom: 1px solid rgba(51, 65, 85, 0.4);
-  position: relative;
 }
 
 .log-entry:last-child {
@@ -316,13 +316,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-right: 4rem;
-}
-
-.log-entry-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .log-category {
@@ -359,19 +352,32 @@ body {
 .log-timestamp {
   font-size: 0.75rem;
   color: var(--text-secondary);
-  position: absolute;
-  top: 0.75rem;
-  right: 0;
   white-space: nowrap;
 }
 
 .log-message {
   font-size: 0.875rem;
   color: var(--text-primary);
-  line-height: 1.4;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .log-entry-error .log-message {
   color: #f87171;
+}
+
+@media (max-width: 768px) {
+  .log-entry {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding: 0.75rem 0;
+  }
+  .log-entry-url, .log-message {
+    white-space: normal;
+    text-overflow: clip;
+    overflow: visible;
+  }
 }
