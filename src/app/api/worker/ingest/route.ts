@@ -8,9 +8,9 @@ import { streamUpload, getFileMetadata, deleteFile } from '@/lib/storage';
 import { createFeedItem, updateFeedItem, getFeedItems, updateIngestion, addProcessedUrl, deleteIngestion, db, Feed } from '@/lib/firestore';
 import { notifyNewEpisode } from '@/lib/chat';
 import { logActivity } from '@/lib/logger';
-import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import { getProductionUrl } from '@/lib/gcloud';
+import crypto from 'crypto';
 
 export async function POST(request: Request) {
   const { ingestionId, feedId, url, origin, published_at, syndication_title } = await request.json();
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     let durationSeconds = 0;
     
     const isVideo = origin === 'youtube';
-    const fileId = uuidv4();
+    const fileId = crypto.createHash('sha256').update(`${feedId}-${url}`).digest('hex');
     const fileExtension = isVideo ? 'mp4' : 'mp3';
     const contentType = isVideo ? 'video/mp4' : 'audio/mpeg';
 
