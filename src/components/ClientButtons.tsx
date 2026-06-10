@@ -3,36 +3,14 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
-export function FeedUrlDisplay({ path, baseUrl }: { path: string; baseUrl?: string }) {
-  const [origin, setOrigin] = useState(baseUrl || '');
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!baseUrl) {
-      const timer = setTimeout(() => {
-        setOrigin(window.location.origin);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [baseUrl]);
-
-  const fullUrl = origin ? `${origin}${path}` : path;
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(fullUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy', err);
-    }
-  };
-
+export function SubscribePageLink({ slug }: { slug: string }) {
   return (
-    <button 
-      onClick={handleCopy} 
-      title="Copy RSS Feed URL"
-      className={`btn ${copied ? 'btn-success' : 'btn-rss'}`}
+    <a 
+      href={`/subscribe/${slug}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="View Subscription Landing Page"
+      className="btn btn-rss"
       style={{
         marginLeft: '1rem',
         padding: '0.35rem', 
@@ -41,16 +19,10 @@ export function FeedUrlDisplay({ path, baseUrl }: { path: string; baseUrl?: stri
         justifyContent: 'center',
       }}
     >
-      {copied ? (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-        </svg>
-      ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>
-          <path fillRule="evenodd" d="M3.75 4.5a.75.75 0 01.75-.75h.75c8.284 0 15 6.716 15 15v.75a.75.75 0 01-.75.75h-.75a.75.75 0 01-.75-.75v-.75C18 11.708 12.292 6 5.25 6H4.5a.75.75 0 01-.75-.75V4.5zm0 6.75a.75.75 0 01.75-.75h.75a8.25 8.25 0 018.25 8.25v.75a.75.75 0 01-.75.75H12a.75.75 0 01-.75-.75v-.75a6.75 6.75 0 00-6.75-6.75H4.5a.75.75 0 01-.75-.75v-.75zm0 7.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" clipRule="evenodd" />
-        </svg>
-      )}
-    </button>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>
+        <path fillRule="evenodd" d="M3.75 4.5a.75.75 0 01.75-.75h.75c8.284 0 15 6.716 15 15v.75a.75.75 0 01-.75.75h-.75a.75.75 0 01-.75-.75v-.75C18 11.708 12.292 6 5.25 6H4.5a.75.75 0 01-.75-.75V4.5zm0 6.75a.75.75 0 01.75-.75h.75a8.25 8.25 0 018.25 8.25v.75a.75.75 0 01-.75.75H12a.75.75 0 01-.75-.75v-.75a6.75 6.75 0 00-6.75-6.75H4.5a.75.75 0 01-.75-.75v-.75zm0 7.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" clipRule="evenodd" />
+      </svg>
+    </a>
   );
 }
 

@@ -1,8 +1,7 @@
-import { headers } from 'next/headers';
 import Image from 'next/image';
 import { getFeeds, getFeedItems, getSyndications } from '@/lib/firestore';
 import FeedForm from '@/components/FeedForm';
-import { DeleteFeedButton, DeleteItemButton, FeedUrlDisplay, WatchVideoButton } from '@/components/ClientButtons';
+import { DeleteFeedButton, DeleteItemButton, SubscribePageLink, WatchVideoButton } from '@/components/ClientButtons';
 import IngestionTabs from '@/components/IngestionTabs';
 import FeedSelector from '@/components/FeedSelector';
 import ProcessingList from '@/components/ProcessingList';
@@ -15,11 +14,6 @@ export const dynamic = 'force-dynamic';
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ feedId?: string }> }) {
   const { feedId } = await searchParams;
   const feeds = await getFeeds();
-  
-  const headersList = await headers();
-  const host = headersList.get('host') || 'localhost:3000';
-  const protocol = host.includes('localhost') ? 'http' : 'https';
-  const baseUrl = `${protocol}://${host}`;
   
   const foundFeed = feedId ? feeds.find(f => f.id === feedId) : undefined;
   const selectedFeed = foundFeed || (feeds.length > 0 ? feeds[0] : null);
@@ -57,7 +51,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                     <div>
                       <h2 style={{margin: '0 0 0.5rem 0', fontSize: '2rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
                         {selectedFeed.title}
-                        <FeedUrlDisplay baseUrl={baseUrl} path={`/feed/${selectedFeed.unguessable_slug}.xml`} />
+                        <SubscribePageLink slug={selectedFeed.unguessable_slug} />
                       </h2>
                       <p style={{margin: 0, color: '#cbd5e1', fontSize: '1rem', lineHeight: 1.5, maxWidth: '600px'}}>
                         {selectedFeed.description || 'No description provided.'}
@@ -78,7 +72,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         }} 
                         buttonText="Edit" 
                       />
-                      <LogViewer feedId={selectedFeed.id!} />
+                      <LogViewer feedId={selectedFeed.id!} episodes={items} />
                       <DeleteFeedButton feedId={selectedFeed.id!} />
                     </div>
                   </div>
@@ -89,7 +83,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 <IngestionTabs feedId={selectedFeed.id!} syndications={syndications} />
               </div>
 
-              <ProcessingList feedId={selectedFeed.id!} />
+              <ProcessingList feedId={selectedFeed.id!} episodes={items} />
 
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
                 <h3 style={{margin: 0}}>Podcast Episodes</h3>
