@@ -12,7 +12,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 
 ## Business Logic & User Flows
 
-1. **Authentication**: The application has an admin web interface restricted to a single admin user via a Simple Passcode mechanism. The passcode is securely stored as `ADMIN_PASSCODE` in the environment variables and validated using Next.js middleware with an `admin_session` cookie.
+1. **Authentication**: The application has an admin web interface restricted to a single admin user via a Simple Passcode mechanism. The passcode is securely stored as `ADMIN_PASSCODE` in the environment variables and validated using Next.js proxy with an `admin_session` cookie.
 2. **Feed Management**: 
    - The admin can create new podcast feeds and provide relevant metadata (e.g., title, description, author name, cover image, TTS voice, audio prefix message).
    - The admin can view, edit, and delete existing feeds.
