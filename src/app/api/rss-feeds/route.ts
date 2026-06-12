@@ -30,16 +30,21 @@ export async function POST(request: Request) {
       const feed = await parser.parseURL(url);
       
       if (feed.items && feed.items.length > 0 && initialAction !== 'future') {
-        const { createIngestion, getFeedItems, getProcessedUrls, getActiveIngestions } = await import('@/lib/firestore');
+        const { createIngestion, getFeedItems, getActiveIngestions } = await import('@/lib/firestore');
 
-        // Dedup: skip URLs that already exist as items, were previously processed, or are currently in-flight
+        // Dedup: skip URLs that already exist as items or are currently in-flight
         const existingItems = await getFeedItems(feedId);
         const existingUrls = new Set(existingItems.map(item => item.source_url));
-        const processedUrls = await getProcessedUrls(feedId);
         const activeIngestions = await getActiveIngestions(feedId);
         const activeUrls = new Set(activeIngestions.map(ing => ing.url));
 
-        const itemsToProcess = initialAction === 'all' ? feed.items : [feed.items[0]];
+        const rawItems = initialAction === 'all' ? feed.items : [feed.items[0]];
+        // Sort items by original publication date descending (newest first) to ensure chronological order within the batch
+        const itemsToProcess = [...rawItems].sort((a, b) => {
+          const dateA = a.isoDate ? new Date(a.isoDate) : (a.pubDate ? new Date(a.pubDate) : new Date(0));
+          const dateB = b.isoDate ? new Date(b.isoDate) : (b.pubDate ? new Date(b.pubDate) : new Date(0));
+          return dateB.getTime() - dateA.getTime();
+        });
         const now = Date.now();
         let skipped = 0;
 
@@ -48,8 +53,8 @@ export async function POST(request: Request) {
           const itemUrl = item.link;
           if (!itemUrl) continue;
 
-          // Skip if already an item, previously processed, or currently in-flight
-          if (existingUrls.has(itemUrl) || processedUrls.has(itemUrl) || activeUrls.has(itemUrl)) {
+          // Skip if already an item or currently in-flight
+          if (existingUrls.has(itemUrl) || activeUrls.has(itemUrl)) {
             skipped++;
             continue;
           }
@@ -63,25 +68,22 @@ export async function POST(request: Request) {
             origin: 'rss',
           });
 
-          // Artificial timestamp: now minus `i` seconds.
-          // i=0 (newest in RSS) gets the newest timestamp (now)
-          // i=N (oldest in RSS batch) gets now - Ns
-          // This guarantees they sit at the top of the podcast feed as "new" episodes,
-          // but are chronologically ordered amongst themselves.
-          const artificialDate = new Date(now - i * 1000).toISOString();
+          // Group the batch at "now" (the global ingestion moment) so they remain in-place,
+          // but subtract i seconds to preserve internal chronological descending order (newest first).
+          const publishedAtStr = new Date(now - i * 1000).toISOString();
 
           await enqueueIngestion({
             ingestionId: ingestion.id!,
             feedId,
             url: itemUrl,
             origin: 'rss',
-            published_at: artificialDate,
+            published_at: publishedAtStr,
             syndication_title: feed.title,
           });
         }
 
         if (skipped > 0) {
-          console.log(`RSS bulk-load: skipped ${skipped} already-processed URLs from ${url}`);
+          console.log(`RSS bulk-load: skipped ${skipped} already-existing/in-flight URLs from ${url}`);
         }
       }
 

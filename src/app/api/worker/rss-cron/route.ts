@@ -26,7 +26,13 @@ export async function GET() {
         const processedUrls = await getProcessedUrls(syn.feed_id);
 
         // Process up to 5 newest items
-        const itemsToCheck = feed.items.slice(0, 5);
+        const rawItemsToCheck = feed.items.slice(0, 5);
+        // Explicitly sort items by original publication date descending (newest first) to ensure chronological order
+        const itemsToCheck = [...rawItemsToCheck].sort((a, b) => {
+          const dateA = a.isoDate ? new Date(a.isoDate) : (a.pubDate ? new Date(a.pubDate) : new Date(0));
+          const dateB = b.isoDate ? new Date(b.isoDate) : (b.pubDate ? new Date(b.pubDate) : new Date(0));
+          return dateB.getTime() - dateA.getTime();
+        });
         const now = Date.now();
 
         for (let i = 0; i < itemsToCheck.length; i++) {
@@ -42,19 +48,16 @@ export async function GET() {
               origin: 'rss',
             });
 
-            // Artificial timestamp: now minus `i` seconds.
-            // i=0 (newest in RSS) gets the newest timestamp (now)
-            // i=4 (oldest in RSS batch) gets now - 4s
-            // This guarantees they sit at the top of the podcast feed as "new" episodes, 
-            // but are chronologically ordered amongst themselves.
-            const artificialDate = new Date(now - i * 1000).toISOString();
+            // Group the batch at "now" (the global ingestion moment) so they remain in-place,
+            // but subtract i seconds to preserve internal chronological descending order (newest first).
+            const publishedAtStr = new Date(now - i * 1000).toISOString();
 
             await enqueueIngestion({
               ingestionId: ingestion.id!,
               feedId: syn.feed_id,
               url: itemUrl,
               origin: 'rss',
-              published_at: artificialDate,
+              published_at: publishedAtStr,
               syndication_title: feed.title || syn.title,
             });
 
