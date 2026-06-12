@@ -31,7 +31,7 @@ function generateAssContent(text: string, durationSeconds: number, width: number
   
   let marginV = 10;
   if (hasCover) {
-    const imageHeight = Math.round(height * 0.42);
+    const imageHeight = Math.round(height * 0.50);
     const gap = Math.round(height * 0.04);
     const textHeightEstimate = Math.round(height * 0.08);
     const totalGroupHeight = imageHeight + gap + textHeightEstimate;
@@ -199,8 +199,8 @@ export async function injectVideoIntro(
     ];
 
     if (localCoverImgPath) {
-      // Scale cover art proportionally to 42% of the video height
-      const imageSize = Math.round(specs.height * 0.42);
+      // Scale cover art proportionally to 50% of the video height
+      const imageSize = Math.round(specs.height * 0.50);
       
       const gap = Math.round(specs.height * 0.04);
       const textHeightEstimate = Math.round(specs.height * 0.08);
