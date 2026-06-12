@@ -28,7 +28,15 @@ function generateAssContent(text: string, durationSeconds: number, width: number
   const fontsize = Math.round(height * 0.045);
   
   const alignment = hasCover ? 2 : 5;
-  const marginV = hasCover ? Math.round(height * 0.20) : 10;
+  
+  let marginV = 10;
+  if (hasCover) {
+    const imageHeight = Math.round(height * 0.42);
+    const gap = Math.round(height * 0.04);
+    const textHeightEstimate = Math.round(height * 0.08);
+    const totalGroupHeight = imageHeight + gap + textHeightEstimate;
+    marginV = Math.round((height - totalGroupHeight) / 2);
+  }
   
   return `[Script Info]
 ScriptType: v4.00+
@@ -191,9 +199,15 @@ export async function injectVideoIntro(
     ];
 
     if (localCoverImgPath) {
-      // Scale cover art proportionally to 35% of the video height
-      const imageSize = Math.round(specs.height * 0.35);
-      const filterComplex = `[2:v]scale=${imageSize}:${imageSize}[logo];[0:v][logo]overlay=(W-w)/2:(H-h)/2-H*0.15[bg_with_logo];[bg_with_logo]subtitles='${escapedAssFilterPath}'[outv]`;
+      // Scale cover art proportionally to 42% of the video height
+      const imageSize = Math.round(specs.height * 0.42);
+      
+      const gap = Math.round(specs.height * 0.04);
+      const textHeightEstimate = Math.round(specs.height * 0.08);
+      const totalGroupHeight = imageSize + gap + textHeightEstimate;
+      const imageTop = Math.round((specs.height - totalGroupHeight) / 2);
+      
+      const filterComplex = `[2:v]scale=${imageSize}:${imageSize}[logo];[0:v][logo]overlay=(W-w)/2:${imageTop}[bg_with_logo];[bg_with_logo]subtitles='${escapedAssFilterPath}'[outv]`;
       
       introArgs.push(
         '-i', localCoverImgPath,
