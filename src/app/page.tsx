@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import { getFeeds, getFeedItems, getSyndications } from '@/lib/firestore';
 import FeedForm from '@/components/FeedForm';
-import { DeleteFeedButton, DeleteItemButton, SubscribePageLink, WatchVideoButton } from '@/components/ClientButtons';
+import { DeleteFeedButton, DeleteItemButton, ListenAudioButton, SubscribePageLink, WatchVideoButton } from '@/components/ClientButtons';
 import IngestionTabs from '@/components/IngestionTabs';
 import FeedSelector from '@/components/FeedSelector';
 import ProcessingList from '@/components/ProcessingList';
@@ -25,9 +25,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   return (
     <div className="container" style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="header">
         <Image src="/logo.svg" alt="article-caster logo" width={260} height={44} priority />
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div className="header-actions">
           <FeedSelector feeds={feeds} activeFeedId={activeFeedId} />
           <FeedForm buttonText="New Podcast" />
         </div>
@@ -49,11 +49,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 <div style={{flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start'}}>
                   <div className="feed-header-info" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                     <div>
-                      <h2 style={{margin: '0 0 0.5rem 0', fontSize: '2rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
+                      <h2 className="feed-title">
                         {selectedFeed.title}
                         <SubscribePageLink slug={selectedFeed.unguessable_slug} />
                       </h2>
-                      <p style={{margin: 0, color: '#cbd5e1', fontSize: '1rem', lineHeight: 1.5, maxWidth: '600px'}}>
+                      <p className="feed-description">
                         {selectedFeed.description || 'No description provided.'}
                       </p>
                     </div>
@@ -71,8 +71,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                           chat_webhook_url: selectedFeed.chat_webhook_url,
                         }} 
                         buttonText="Edit" 
+                        buttonTitle="Edit Podcast Settings"
                       />
-                      <LogViewer feedId={selectedFeed.id!} episodes={items} />
+                      <LogViewer feedId={selectedFeed.id!} />
                       <DeleteFeedButton feedId={selectedFeed.id!} />
                     </div>
                   </div>
@@ -124,7 +125,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         <tr key={item.id}>
 
                           <td>
-                            <div className="article-title" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <div className="article-title" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', width: '100%' }}>
                               <div style={{
                                 color: '#94a3b8',
                                 flexShrink: 0,
@@ -170,19 +171,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                               )}
                             </div>
                           </td>
-                          <td className="article-audio-cell">
-                            {item.type === 'video' || item.media_url.toLowerCase().endsWith('.mp4') ? (
-                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <WatchVideoButton videoUrl={item.media_url} title={item.title} />
-                              </div>
-                            ) : (
-                              <audio controls>
-                                <source src={item.media_url} type={item.media_url.toLowerCase().endsWith('.wav') ? 'audio/wav' : 'audio/mpeg'} />
-                              </audio>
-                            )}
-                          </td>
                           <td className="article-actions-cell">
-                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                              {item.type === 'video' || item.media_url.toLowerCase().endsWith('.mp4') ? (
+                                <WatchVideoButton videoUrl={item.media_url} title={item.title} />
+                              ) : (
+                                <ListenAudioButton audioUrl={item.media_url} title={item.title} coverImageUrl={selectedFeed.cover_image_url} />
+                              )}
                               <DeleteItemButton itemId={item.id!} />
                             </div>
                           </td>

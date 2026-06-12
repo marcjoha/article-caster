@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 export function SubscribePageLink({ slug }: { slug: string }) {
@@ -11,13 +12,7 @@ export function SubscribePageLink({ slug }: { slug: string }) {
       rel="noopener noreferrer"
       title="View Subscription Landing Page"
       className="btn btn-rss"
-      style={{
-        marginLeft: '1rem',
-        padding: '0.35rem', 
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      style={{ padding: '0.35rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
     >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '1rem', height: '1rem' }}>
         <path fillRule="evenodd" d="M3.75 4.5a.75.75 0 01.75-.75h.75c8.284 0 15 6.716 15 15v.75a.75.75 0 01-.75.75h-.75a.75.75 0 01-.75-.75v-.75C18 11.708 12.292 6 5.25 6H4.5a.75.75 0 01-.75-.75V4.5zm0 6.75a.75.75 0 01.75-.75h.75a8.25 8.25 0 018.25 8.25v.75a.75.75 0 01-.75.75H12a.75.75 0 01-.75-.75v-.75a6.75 6.75 0 00-6.75-6.75H4.5a.75.75 0 01-.75-.75v-.75zm0 7.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" clipRule="evenodd" />
@@ -43,8 +38,7 @@ export function DeleteFeedButton({ feedId }: { feedId: string }) {
     <>
       <button 
         onClick={() => setShowConfirm(true)} 
-        className="btn" 
-        style={{backgroundColor: '#ef4444', color: 'white', padding: '0.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}
+        className="btn-destructive btn-square" 
         title="Delete Podcast"
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.25rem', height: '1.25rem' }}>
@@ -83,8 +77,7 @@ export function DeleteItemButton({ itemId }: { itemId: string }) {
     <>
       <button 
         onClick={() => setShowConfirm(true)} 
-        className="btn" 
-        style={{backgroundColor: '#ef4444', color: 'white', padding: '0.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}
+        className="btn-destructive btn-square" 
         title="Delete Episode"
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.25rem', height: '1.25rem' }}>
@@ -124,22 +117,12 @@ export function WatchVideoButton({ videoUrl, title }: { videoUrl: string; title:
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="btn"
-        style={{
-          backgroundColor: '#10b981',
-          color: 'white',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          padding: '0.4rem 0.8rem',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-        }}
+        className="btn-success btn-square"
+        title="Watch Video"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 24" fill="currentColor" style={{ width: '0.875rem', height: '0.875rem' }}>
-          <path d="M8 5.14v14l11-7z" />
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '1.15rem', height: '1.15rem', transform: 'translateX(1px)' }}>
+          <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
         </svg>
-        Watch
       </button>
 
       {showModal && (
@@ -218,6 +201,126 @@ export function WatchVideoButton({ videoUrl, title }: { videoUrl: string; title:
                   height: '100%',
                   border: 'none',
                 }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export function ListenAudioButton({ audioUrl, title, coverImageUrl }: { audioUrl: string; title: string; coverImageUrl?: string }) {
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showModal]);
+
+  return (
+    <>
+      <button
+        onClick={() => setShowModal(true)}
+        className="btn-success btn-square"
+        title="Listen to Audio"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" style={{ width: '1.1rem', height: '1.1rem', transform: 'translateX(1px)' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+        </svg>
+      </button>
+
+      {showModal && (
+        <div
+          onClick={() => setShowModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#1e293b',
+              borderRadius: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              width: '100%',
+              maxWidth: '500px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1rem 1.5rem',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
+                Listen to Episode
+              </h3>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'color 0.2s',
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" style={{ width: '1.5rem', height: '1.5rem' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', backgroundColor: '#0f172a' }}>
+              {coverImageUrl ? (
+                <Image src={coverImageUrl} alt="Cover" width={180} height={180} unoptimized style={{ borderRadius: '12px', objectFit: 'cover', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }} />
+              ) : (
+                <div style={{ width: '180px', height: '180px', borderRadius: '12px', background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+                  <span style={{ fontSize: '4.5rem', color: '#fff' }}>🎙️</span>
+                </div>
+              )}
+              <div style={{ textAlign: 'center', width: '100%', marginBottom: '0.5rem' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', color: 'white', fontSize: '1.1rem', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.4 }}>
+                  {title}
+                </h4>
+              </div>
+              <audio 
+                src={audioUrl} 
+                controls 
+                autoPlay 
+                style={{ 
+                  width: '100%', 
+                  height: '40px',
+                  borderRadius: '8px'
+                }} 
               />
             </div>
           </div>
