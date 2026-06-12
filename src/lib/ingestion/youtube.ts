@@ -44,8 +44,15 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
     '-f', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[ext=mp4]',
     '-o', outputPath,
     '--no-playlist',
-    '--js-runtimes', 'node'
+    '--js-runtimes', 'node',
+    '--no-progress'
   ];
+
+  const binDir = path.join(process.cwd(), 'bin');
+  const hasLocalFfmpeg = fs.existsSync(path.join(binDir, 'ffmpeg')) || fs.existsSync(path.join(binDir, 'ffmpeg.exe'));
+  if (hasLocalFfmpeg) {
+    downloadArgs.push('--ffmpeg-location', binDir);
+  }
 
   if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
     downloadArgs.push('--cookies', path.join(process.cwd(), 'cookies.txt'));
@@ -55,6 +62,10 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
 
   await execFileAsync(customYtDlpPath, downloadArgs, { maxBuffer: 10 * 1024 * 1024 });
 
+  if (!fs.existsSync(outputPath)) {
+    throw new Error(`yt-dlp completed successfully, but the expected output video file was not created at: ${outputPath}`);
+  }
+
   return {
     title,
     description,
@@ -63,3 +74,4 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
     isVideo: true
   };
 }
+
