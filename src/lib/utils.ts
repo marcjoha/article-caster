@@ -168,4 +168,49 @@ export function getUrlDisplayString(
   }
 }
 
+/**
+ * Returns estimated monthly cost and details for GCS Standard Storage.
+ * Standard storage prices vary by region:
+ * - Stockholm (europe-north2): $0.020 / GB / month
+ * - Iowa (us-central1): $0.020 / GB / month
+ * - ...
+ */
+export function getGcsStorageCost(bytes: number, region: string = 'europe-north2'): {
+  cost: number;
+  formattedCost: string;
+  ratePerGb: number;
+} {
+  const gb = bytes / (1024 * 1024 * 1024);
+  
+  // Storage class: Standard Storage list prices by region (per GB per month)
+  const regionRates: Record<string, number> = {
+    'europe-north2': 0.020, // Stockholm
+    'europe-west1': 0.020,  // Belgium
+    'europe-west2': 0.023,  // London
+    'europe-west3': 0.023,  // Frankfurt
+    'europe-west4': 0.020,  // Eemshaven
+    'europe-west9': 0.023,  // Paris
+    'us-central1': 0.020,   // Iowa
+    'us-east1': 0.020,      // South Carolina
+    'us-east4': 0.023,      // Northern Virginia
+    'us-west1': 0.020,      // Oregon
+    'us-west2': 0.023,      // Los Angeles
+    'us-west3': 0.023,      // Salt Lake City
+    'us-west4': 0.023,      // Las Vegas
+  };
+
+  const normalizedRegion = region.toLowerCase();
+  const ratePerGb = regionRates[normalizedRegion] ?? 0.020; // Default to $0.020/GB/month if unknown
+  
+  const cost = gb * ratePerGb;
+  const formattedCost = cost.toFixed(2);
+  
+  return {
+    cost,
+    formattedCost,
+    ratePerGb,
+  };
+}
+
+
 

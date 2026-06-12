@@ -463,3 +463,56 @@ textarea.input-field {
 .log-viewer-dialog::-webkit-scrollbar {
   display: none;             /* Chrome, Safari, Opera */
 }
+
+/* Tooltip styles */
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-container .tooltip-text {
+  visibility: hidden;
+  width: 260px;
+  background-color: #0f172a;
+  color: var(--text-primary);
+  text-align: center;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+  
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 10;
+  bottom: 125%; /* Position above the text */
+  left: 50%;
+  margin-left: -130px; /* Center the tooltip */
+  
+  /* Fade in/out transition */
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(4px);
+  pointer-events: none;
+}
+
+/* Tooltip arrow */
+.tooltip-container .tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%; /* At the bottom of the tooltip */
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: #334155 transparent transparent transparent;
+}
+
+/* Show the tooltip on hover */
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+

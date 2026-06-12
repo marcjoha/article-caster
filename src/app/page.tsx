@@ -7,7 +7,7 @@ import FeedSelector from '@/components/FeedSelector';
 import ProcessingList from '@/components/ProcessingList';
 import LogViewer from '@/components/LogViewer';
 
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, getGcsStorageCost } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,7 +101,23 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                       unitIndex++;
                     }
                     const formatted = unitIndex === 0 ? `${size} ${units[unitIndex]}` : `${size.toFixed(size < 10 ? 1 : 0)} ${units[unitIndex]}`;
-                    return <> · {formatted}</>;
+                    
+                    const region = process.env.GOOGLE_CLOUD_REGION || 'europe-north2';
+                    const { formattedCost, ratePerGb } = getGcsStorageCost(totalBytes, region);
+                    
+                    return (
+                      <>
+                        {" · "}
+                        {formatted}
+                        {" · "}
+                        <span className="tooltip-container" style={{ cursor: 'help' }}>
+                          ${formattedCost}/mo
+                          <span className="tooltip-text">
+                            Based on Standard Storage list price of ${ratePerGb.toFixed(3)}/GB/mo in {region}
+                          </span>
+                        </span>
+                      </>
+                    );
                   })()}
                 </span>
               </div>
