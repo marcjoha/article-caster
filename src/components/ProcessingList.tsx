@@ -153,10 +153,20 @@ export default function ProcessingList({ feedId, episodes }: ProcessingListProps
                     {formatDateTime(ing.created_at)}
                   </div>
                 </td>
-                <td className="article-audio-cell" colSpan={2}>
+                <td className="article-actions-cell" style={{ verticalAlign: 'middle' }}>
                   {ing.status === 'failed' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem', overflow: 'hidden' }}>
-                      <div style={{ color: '#ef4444', fontSize: '0.875rem', fontWeight: 600, textAlign: 'right', wordBreak: 'break-word', whiteSpace: 'pre-wrap', maxWidth: '300px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem' }}>
+                      <div style={{ 
+                        color: '#ef4444', 
+                        fontSize: '0.875rem', 
+                        fontWeight: 600, 
+                        textAlign: 'right', 
+                        whiteSpace: 'normal', 
+                        wordBreak: 'break-word', 
+                        width: 'max-content',
+                        minWidth: '150px', 
+                        maxWidth: '400px' 
+                      }}>
                         {formatError(ing.error || 'Unknown error')}
                       </div>
                       <button 
