@@ -24,7 +24,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
   const articleUrlWarning = activeTab === 'article' && url && looksLikeYoutubeUrl(url)
     ? 'This looks like a YouTube URL. Use the YouTube tab to ingest videos.'
     : url && looksLikeRssFeed(url)
-    ? 'This looks like an RSS feed URL. Use the RSS Feeds tab to subscribe to feeds.'
+    ? 'This looks like an RSS feed URL. Use the RSS tab to subscribe to feeds.'
     : null;
   const rssUrlWarning = rssUrl && looksLikeArticleUrl(rssUrl)
     ? 'This looks like a regular article or video URL, not an RSS feed. Use the Article tab to ingest individual articles.'
@@ -124,7 +124,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
             borderBottom: activeTab === 'article' ? '2px solid #3b82f6' : '2px solid transparent',
             cursor: 'pointer',
             fontSize: '1rem',
-            fontWeight: activeTab === 'article' ? 600 : 400,
+            fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
@@ -145,7 +145,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
             borderBottom: activeTab === 'rss' ? '2px solid #3b82f6' : '2px solid transparent',
             cursor: 'pointer',
             fontSize: '1rem',
-            fontWeight: activeTab === 'rss' ? 600 : 400,
+            fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
@@ -154,7 +154,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1.2rem', height: '1.2rem' }}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
           </svg>
-          RSS Feeds
+          RSS
         </button>
         <button
           onClick={() => {
@@ -170,7 +170,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
             borderBottom: activeTab === 'youtube' ? '2px solid #3b82f6' : '2px solid transparent',
             cursor: process.env.NODE_ENV !== 'development' ? 'not-allowed' : 'pointer',
             fontSize: '1rem',
-            fontWeight: activeTab === 'youtube' ? 600 : 400,
+            fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
@@ -188,9 +188,9 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
       {activeTab === 'article' || activeTab === 'youtube' ? (
         <form onSubmit={handleIngestArticle}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <div style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <input type="url" className="input-field" value={url} onChange={e => setUrl(e.target.value)} placeholder={activeTab === 'youtube' ? "https://youtube.com/watch?v=..." : "https://example.com/article"} required style={{ marginBottom: 0, borderColor: articleUrlWarning ? '#f59e0b' : undefined }} />
-              <button type="submit" className="btn" disabled={loading || !!articleUrlWarning} style={{ whiteSpace: 'nowrap' }}>
+              <button type="submit" className="btn" disabled={loading || !!articleUrlWarning}>
                 {loading ? 'Processing...' : 'Add'}
               </button>
             </div>
@@ -208,14 +208,14 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
         <div>
           <form onSubmit={handleAddRss} style={{ marginBottom: '1.5rem' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <div style={{ display: 'flex', gap: '1rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 <input type="url" className="input-field" value={rssUrl} onChange={e => setRssUrl(e.target.value)} placeholder="https://example.com/rss.xml" required style={{ marginBottom: 0, flex: 1, borderColor: rssUrlWarning ? '#f59e0b' : undefined }} />
                 <select className="input-field" value={initialAction} onChange={e => setInitialAction(e.target.value)} style={{ marginBottom: 0, width: 'auto' }}>
                   <option value="future">Add only future posts</option>
                   <option value="recent">Also add most recent post</option>
                   <option value="all">Also add all historical posts</option>
                 </select>
-                <button type="submit" className="btn" disabled={rssLoading || !!rssUrlWarning} style={{ whiteSpace: 'nowrap' }}>
+                <button type="submit" className="btn" disabled={rssLoading || !!rssUrlWarning}>
                   {rssLoading ? 'Adding...' : 'Subscribe'}
                 </button>
               </div>
@@ -259,7 +259,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
                         </div>
                       </td>
                       <td className="article-actions-cell" style={{ padding: '0.75rem 1rem' }}>
-                        <button onClick={() => setSyndicationToDelete(syn.id!)} className="btn-destructive" title="Remove Feed" style={{ padding: '0.4rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <button onClick={() => setSyndicationToDelete(syn.id!)} className="btn-destructive btn-square" title="Remove Feed">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.25rem', height: '1.25rem' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                           </svg>

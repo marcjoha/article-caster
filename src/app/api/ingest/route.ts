@@ -19,9 +19,9 @@ export async function POST(request: Request) {
       origin = 'youtube';
     }
 
-    // Reject RSS feed URLs — these should go through the RSS Feeds tab
+    // Reject RSS feed URLs — these should go through the RSS tab
     if (origin !== 'rss' && looksLikeRssFeed(url)) {
-      return NextResponse.json({ error: 'This URL looks like an RSS feed. Use the RSS Feeds tab to subscribe to feeds instead.' }, { status: 400 });
+      return NextResponse.json({ error: 'This URL looks like an RSS feed. Use the RSS tab to subscribe to feeds instead.' }, { status: 400 });
     }
 
     // Restrict YouTube ingestion to local development

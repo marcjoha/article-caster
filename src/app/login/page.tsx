@@ -29,7 +29,7 @@ export default function Login() {
 
         <form 
           onSubmit={handleLogin} 
-          style={{ display: 'flex', gap: '1rem' }}
+          style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}
           className={isShaking ? 'shake' : ''}
         >
           <input

@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ConfirmDialog from './ConfirmDialog';
-import { getUrlDisplayString as getDisplayString } from '@/lib/utils';
 
 interface LogEntry {
   id: string;
@@ -12,27 +11,10 @@ interface LogEntry {
   created_at: string;
 }
 
-interface LogViewerEpisode {
-  title: string;
-  source_url: string;
-}
-
 interface LogViewerProps {
   feedId: string;
-  episodes?: LogViewerEpisode[];
 }
 
-function formatRelativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 function formatAbsoluteTime(dateStr: string): string {
   try {
@@ -46,12 +28,9 @@ function formatAbsoluteTime(dateStr: string): string {
 
 
 
-export default function LogViewer({ feedId, episodes }: LogViewerProps) {
+export default function LogViewer({ feedId }: LogViewerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const getUrlDisplayString = useCallback((url: string): string => {
-    return getDisplayString(url, episodes);
-  }, [episodes]);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterUrl, setFilterUrl] = useState('');
@@ -100,7 +79,7 @@ export default function LogViewer({ feedId, episodes }: LogViewerProps) {
         urls.add(entry.details);
       }
     }
-    return Array.from(urls).sort();
+    return Array.from(urls).sort((a, b) => a.localeCompare(b));
   }, [entries]);
 
   // Filter entries by selected URL
@@ -133,21 +112,17 @@ export default function LogViewer({ feedId, episodes }: LogViewerProps) {
   }, [feedId, filterUrl]);
 
   const clearMessage = filterUrl
-    ? `Delete all log entries for ${getUrlDisplayString(filterUrl)}? This cannot be undone.`
+    ? `Delete all log entries for ${filterUrl}? This cannot be undone.`
     : 'Delete all log entries for this feed? This cannot be undone.';
 
   return (
     <>
       <button
         onClick={handleOpen}
-        className="btn"
-        style={{ backgroundColor: '#10b981', color: 'white', padding: '0.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+        className="btn-success"
         title="Activity Log"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.25rem', height: '1.25rem' }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-        </svg>
-
+        Logs
       </button>
 
       {isOpen && (
@@ -157,7 +132,7 @@ export default function LogViewer({ feedId, episodes }: LogViewerProps) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
           padding: '1rem'
         }}>
-          <div className="card" style={{ padding: '2rem', width: '100%', maxWidth: '1100px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="card log-viewer-dialog" style={{ padding: '2rem', width: '100%', maxWidth: '1100px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <h2 style={{ marginTop: 0, marginBottom: 0 }}>Activity Log</h2>
               <div style={{ flex: 1 }} />
@@ -183,7 +158,7 @@ export default function LogViewer({ feedId, episodes }: LogViewerProps) {
                   >
                     <option value="">All events</option>
                     {uniqueUrls.map(url => (
-                      <option key={url} value={url}>{getUrlDisplayString(url)}</option>
+                      <option key={url} value={url}>{url}</option>
                     ))}
                   </select>
                 )}
@@ -211,18 +186,22 @@ export default function LogViewer({ feedId, episodes }: LogViewerProps) {
             ) : (
               <div className="log-list">
                 {filteredEntries.map(entry => {
-                  const resolvedUrlString = entry.details ? getUrlDisplayString(entry.details) : '—';
+                  const fullUrl = entry.details || '—';
                   return (
                     <div key={entry.id} className={`log-entry ${entry.level === 'error' ? 'log-entry-error' : ''}`}>
-                      <span className="log-timestamp">
-                        {formatAbsoluteTime(entry.created_at)} ({formatRelativeTime(entry.created_at)})
-                      </span>
-                      <div className="log-entry-url" title={entry.details ? resolvedUrlString : ''}>
-                        {resolvedUrlString}
+                      <div className="log-entry-top">
+                        <div className="log-message" title={entry.message}>
+                          {entry.message}
+                        </div>
+                        <span className="log-timestamp">
+                          {formatAbsoluteTime(entry.created_at)}
+                        </span>
                       </div>
-                      <div className="log-message" title={entry.message}>
-                        {entry.message}
-                      </div>
+                      {!filterUrl && (
+                        <div className="log-entry-url" title={entry.details || ''}>
+                          {fullUrl}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -17,12 +17,14 @@ interface FeedFormProps {
   };
   buttonText?: string;
   buttonStyle?: React.CSSProperties;
+  buttonTitle?: string;
 }
 
 export default function FeedForm({ 
   initialData, 
   buttonText = '+ Add New', 
   buttonStyle, 
+  buttonTitle,
 }: FeedFormProps) {
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
@@ -156,7 +158,8 @@ export default function FeedForm({
       <button 
         onClick={() => setIsOpen(true)}
         className="btn"
-        style={buttonStyle || {padding: '0.4rem 0.8rem', fontSize: '0.875rem', whiteSpace: 'nowrap'}}
+        style={buttonStyle}
+        title={buttonTitle}
       >
         {buttonText}
       </button>
