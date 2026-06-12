@@ -36,12 +36,12 @@ export async function extractYoutubeAudio(url: string): Promise<YoutubeExtractio
   const description = metadata.description || '';
   const durationSeconds = metadata.duration || 0;
 
-  // 2. Download video (max 720p) and audio merged into MP4
+  // 2. Download video (max 1080p) and audio merged into MP4
   const tmpDir = os.tmpdir();
   const outputPath = path.join(tmpDir, `yt-${Date.now()}-${Math.random().toString(36).substring(7)}.mp4`);
 
   const downloadArgs = [
-    '-f', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[ext=mp4]',
+    '-f', 'bestvideo[height<=1080][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4][vcodec^=avc1]/best[ext=mp4][vcodec^=avc1]',
     '-o', outputPath,
     '--no-playlist',
     '--js-runtimes', 'node',

@@ -40,6 +40,13 @@ export async function GET() {
           const itemUrl = item.link;
           if (!itemUrl) continue;
 
+          // Skip historical items published before the syndication was subscribed to
+          const itemDate = item.isoDate ? new Date(item.isoDate) : (item.pubDate ? new Date(item.pubDate) : null);
+          const thresholdTime = syn.created_at ? syn.created_at.getTime() - 60000 : 0;
+          if (itemDate && itemDate.getTime() <= thresholdTime) {
+            continue;
+          }
+
           // If it's not already an item and has never been processed
           if (!existingUrls.has(itemUrl) && !processedUrls.has(itemUrl)) {
             const ingestion = await createIngestion({

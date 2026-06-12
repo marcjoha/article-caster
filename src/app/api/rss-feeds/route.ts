@@ -127,3 +127,92 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const { id } = await request.json();
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    const syn = await getSyndicationById(id);
+    if (!syn) {
+      return NextResponse.json({ error: 'Syndication not found' }, { status: 404 });
+    }
+
+    const Parser = (await import('rss-parser')).default;
+    const parser = new Parser();
+    const feed = await parser.parseURL(syn.url);
+
+    const { updateSyndication, createIngestion, getFeedItems, getProcessedUrls } = await import('@/lib/firestore');
+    
+    // Fetch existing items to avoid duplicates
+    const existingItems = await getFeedItems(syn.feed_id);
+    const existingUrls = new Set(existingItems.map(item => item.source_url));
+    const processedUrls = await getProcessedUrls(syn.feed_id);
+
+    // Process up to 5 newest items
+    const rawItemsToCheck = feed.items.slice(0, 5);
+    const itemsToCheck = [...rawItemsToCheck].sort((a, b) => {
+      const dateA = a.isoDate ? new Date(a.isoDate) : (a.pubDate ? new Date(a.pubDate) : new Date(0));
+      const dateB = b.isoDate ? new Date(b.isoDate) : (b.pubDate ? new Date(b.pubDate) : new Date(0));
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    const now = Date.now();
+    let addedForSyn = 0;
+
+    for (let i = 0; i < itemsToCheck.length; i++) {
+      const item = itemsToCheck[i];
+      const itemUrl = item.link;
+      if (!itemUrl) continue;
+
+      // Skip historical items published before the syndication was subscribed to
+      const itemDate = item.isoDate ? new Date(item.isoDate) : (item.pubDate ? new Date(item.pubDate) : null);
+      const thresholdTime = syn.created_at ? syn.created_at.getTime() - 60000 : 0;
+      if (itemDate && itemDate.getTime() <= thresholdTime) {
+        continue;
+      }
+
+      if (!existingUrls.has(itemUrl) && !processedUrls.has(itemUrl)) {
+        const ingestion = await createIngestion({
+          feed_id: syn.feed_id,
+          url: itemUrl,
+          origin: 'rss',
+        });
+
+        const publishedAtStr = new Date(now - i * 1000).toISOString();
+
+        await enqueueIngestion({
+          ingestionId: ingestion.id!,
+          feedId: syn.feed_id,
+          url: itemUrl,
+          origin: 'rss',
+          published_at: publishedAtStr,
+          syndication_title: feed.title || syn.title,
+        });
+
+        addedForSyn++;
+      }
+    }
+
+    await updateSyndication(syn.id!, {
+      title: feed.title || syn.title,
+      last_checked_at: new Date(),
+    });
+
+    logActivity({
+      feedId: syn.feed_id,
+      level: 'info',
+      category: 'rss',
+      message: `Manual RSS sync triggered: ${addedForSyn} new episode${addedForSyn === 1 ? '' : 's'} queued from "${feed.title || syn.url}"`,
+      details: syn.url
+    });
+
+    return NextResponse.json({ success: true, added: addedForSyn });
+  } catch (error: unknown) {
+    console.error('Sync RSS feed error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

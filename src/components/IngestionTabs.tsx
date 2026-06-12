@@ -17,6 +17,7 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
   const [rssLoading, setRssLoading] = useState(false);
   const [syndicationToDelete, setSyndicationToDelete] = useState<string | null>(null);
   const [isDeletingRss, setIsDeletingRss] = useState(false);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
   const [initialAction, setInitialAction] = useState('future');
   const [errorModalMessage, setErrorModalMessage] = useState<string | null>(null);
 
@@ -103,6 +104,31 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
       setErrorModalMessage('Network error while removing subscription');
     }
     setIsDeletingRss(false);
+  };
+
+  const handleSync = async (id: string) => {
+    setSyncingId(id);
+    try {
+      const res = await fetch('/api/rss-feeds', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const errorText = await res.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          setErrorModalMessage(`Sync failed: ${errorData.error}`);
+        } catch {
+          setErrorModalMessage(`Sync failed with status ${res.status}.`);
+        }
+      }
+    } catch (err: unknown) {
+      setErrorModalMessage(`Sync failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+    setSyncingId(null);
   };
 
   const handleTabChange = (tab: 'article' | 'youtube' | 'rss') => {
@@ -259,11 +285,40 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
                         </div>
                       </td>
                       <td className="article-actions-cell" style={{ padding: '0.75rem 1rem' }}>
-                        <button onClick={() => setSyndicationToDelete(syn.id!)} className="btn-destructive btn-square" title="Remove Feed">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.25rem', height: '1.25rem' }}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => handleSync(syn.id!)}
+                            className="btn btn-square"
+                            style={{ backgroundColor: '#2563eb', color: 'white' }}
+                            disabled={syncingId !== null || isDeletingRss}
+                            title="Sync Now"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              strokeWidth={1.5}
+                              stroke="currentColor"
+                              style={{
+                                width: '1.25rem',
+                                height: '1.25rem',
+                                animation: syncingId === syn.id ? 'spin 1s linear infinite' : 'none',
+                              }}
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setSyndicationToDelete(syn.id!)}
+                            className="btn-destructive btn-square"
+                            disabled={syncingId !== null || isDeletingRss}
+                            title="Remove Feed"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.25rem', height: '1.25rem' }}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

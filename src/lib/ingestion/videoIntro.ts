@@ -59,6 +59,8 @@ interface VideoSpecs {
   fps: number;
   sampleRate: number;
   channels: number;
+  tbn: number;
+  codec: string;
 }
 
 /**
@@ -79,12 +81,28 @@ async function probeVideo(filePath: string, ffmpegPath: string): Promise<VideoSp
     const hzMatch = output.match(/(\d{5})\s+Hz/);
     const channelsMatch = output.match(/Hz,\s+([^,\s]+)/);
     
+    const codecMatch = output.match(/Video:\s+([a-zA-Z0-9]+)/i);
+    const codec = codecMatch ? codecMatch[1].toLowerCase() : 'unknown';
+    
+    const tbnMatch = output.match(/, (\d+(?:\.\d+)?k?)\s+tbn/);
+    let tbn = 90000; // default standard timescale
+    if (tbnMatch) {
+      const val = tbnMatch[1];
+      if (val.endsWith('k')) {
+        tbn = parseFloat(val.slice(0, -1)) * 1000;
+      } else {
+        tbn = parseInt(val, 10);
+      }
+    }
+    
     const specs: VideoSpecs = {
       width: resMatch ? parseInt(resMatch[1], 10) : 1280,
       height: resMatch ? parseInt(resMatch[2], 10) : 720,
       fps: fpsMatch ? parseFloat(fpsMatch[1]) : 25,
       sampleRate: hzMatch ? parseInt(hzMatch[1], 10) : 44100,
       channels: channelsMatch ? (channelsMatch[1].includes('mono') ? 1 : 2) : 2,
+      tbn: tbn,
+      codec: codec,
     };
     
     console.log(`[videoIntro] Probed specs for ${path.basename(filePath)}:`, specs);
@@ -97,6 +115,8 @@ async function probeVideo(filePath: string, ffmpegPath: string): Promise<VideoSp
       fps: 25,
       sampleRate: 44100,
       channels: 2,
+      tbn: 90000,
+      codec: 'unknown',
     };
   }
 }
@@ -226,6 +246,8 @@ export async function injectVideoIntro(
     introArgs.push(
       '-c:v', 'libx264',
       '-pix_fmt', 'yuv420p',
+      '-r', specs.fps.toString(),                   // Force constant frame rate matching
+      '-video_track_timescale', specs.tbn.toString(), // Force exact timescale matching
       '-c:a', 'aac',
       '-ar', specs.sampleRate.toString(),
       '-ac', specs.channels.toString(),
@@ -237,28 +259,65 @@ export async function injectVideoIntro(
     console.log(`[videoIntro] Successfully generated intro.mp4 at ${introMp4Path}`);
     
     // 6. Lossless stream-copy concatenation
-    const concatListPath = path.join(tmpDir, `video-intro-concat-${Date.now()}.txt`);
-    tempFiles.push(concatListPath);
-    
-    const escapedIntroPath = introMp4Path.replace(/'/g, "'\\''");
-    const escapedMainPath = downloadedFilePath.replace(/'/g, "'\\''");
-    
-    const concatContent = `file '${escapedIntroPath}'\nfile '${escapedMainPath}'\n`;
-    fs.writeFileSync(concatListPath, concatContent, 'utf-8');
-    
     const finalMp4Path = path.join(tmpDir, `video-final-${Date.now()}.mp4`);
     
-    console.log(`[videoIntro] Concatenating clips using stream-copy...`);
-    const concatArgs = [
-      '-y',
-      '-f', 'concat',
-      '-safe', '0',
-      '-i', concatListPath,
-      '-c', 'copy',
-      finalMp4Path
-    ];
-    
-    await execFileAsync(ffmpegPath, concatArgs);
+    if (specs.codec !== 'h264') {
+      console.warn(`[videoIntro] Target video codec is "${specs.codec}", but only "h264" is supported for TS stream-copy concatenation. Falling back to direct MP4 concat demuxer...`);
+      
+      const concatListPath = path.join(tmpDir, `video-intro-concat-${Date.now()}.txt`);
+      tempFiles.push(concatListPath);
+      
+      const escapedIntroPath = introMp4Path.replace(/'/g, "'\\''");
+      const escapedMainPath = downloadedFilePath.replace(/'/g, "'\\''");
+      
+      const concatContent = `file '${escapedIntroPath}'\nfile '${escapedMainPath}'\n`;
+      fs.writeFileSync(concatListPath, concatContent, 'utf-8');
+      
+      await execFileAsync(ffmpegPath, [
+        '-y',
+        '-f', 'concat',
+        '-safe', '0',
+        '-i', concatListPath,
+        '-c', 'copy',
+        '-video_track_timescale', specs.tbn.toString(),
+        finalMp4Path
+      ]);
+    } else {
+      console.log(`[videoIntro] Target video codec is h264. Using robust MPEG-TS concatenation...`);
+      
+      const introTsPath = path.join(tmpDir, `video-intro-clip-${Date.now()}.ts`);
+      const mainTsPath = path.join(tmpDir, `video-main-${Date.now()}.ts`);
+      tempFiles.push(introTsPath, mainTsPath);
+      
+      console.log(`[videoIntro] Converting intro.mp4 to intermediate TS...`);
+      await execFileAsync(ffmpegPath, [
+        '-y',
+        '-i', introMp4Path,
+        '-c', 'copy',
+        '-bsf:v', 'h264_mp4toannexb',
+        '-f', 'mpegts',
+        introTsPath
+      ]);
+      
+      console.log(`[videoIntro] Converting main video.mp4 to intermediate TS...`);
+      await execFileAsync(ffmpegPath, [
+        '-y',
+        '-i', downloadedFilePath,
+        '-c', 'copy',
+        '-bsf:v', 'h264_mp4toannexb',
+        '-f', 'mpegts',
+        mainTsPath
+      ]);
+      
+      console.log(`[videoIntro] Concatenating TS streams into final MP4...`);
+      await execFileAsync(ffmpegPath, [
+        '-y',
+        '-i', `concat:${introTsPath}|${mainTsPath}`,
+        '-c', 'copy',
+        '-bsf:a', 'aac_adtstoasc',
+        finalMp4Path
+      ]);
+    }
     console.log(`[videoIntro] Concatenation successful. Final video: ${finalMp4Path}`);
     
     // Return final concatenated path and updated duration
