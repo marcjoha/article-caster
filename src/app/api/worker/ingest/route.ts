@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { extractArticleContent } from '@/lib/ingestion/article';
 import { synthesizeSpeech } from '@/lib/ingestion/tts';
 import { extractYoutubeAudio } from '@/lib/ingestion/youtube';
+import { injectVideoIntro } from '@/lib/ingestion/videoIntro';
 import { summarizeContent } from '@/lib/ingestion/summarize';
 import { applyLoudnessNormalization } from '@/lib/audio';
 import { streamUpload, getFileMetadata, deleteFile } from '@/lib/storage';
@@ -11,6 +12,7 @@ import { logActivity } from '@/lib/logger';
 import fs from 'fs';
 import { getProductionUrl } from '@/lib/gcloud';
 import crypto from 'crypto';
+import { Writable } from 'stream';
 
 export async function POST(request: Request) {
   const { ingestionId, feedId, url, origin, published_at, syndication_title } = await request.json();
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
   }
 
   let downloadedFilePath: string | null = null;
+  let activeWriteStream: Writable | null = null;
 
   try {
     const feedSnapshot = await db.collection('feeds').doc(feedId).get();
@@ -57,6 +60,35 @@ export async function POST(request: Request) {
       
       await updateIngestion(ingestionId, { status: '2/4: Generating summary...' });
       description = await summarizeContent(title, result.description);
+
+      await updateIngestion(ingestionId, { status: '2.5/4: Injecting video intro prefix...' });
+      const originalPath = downloadedFilePath;
+      const domain = new URL(url).hostname.replace(/^www\./, '');
+      const videoIntroMessage = feed?.audio_prefix_message
+        ? `${feed.audio_prefix_message}\n\nThis is a video titled ${title} from ${domain}.`
+        : `This is a video titled ${title} from ${domain}.`;
+
+      const introResult = await injectVideoIntro(
+        downloadedFilePath,
+        durationSeconds,
+        title,
+        videoIntroMessage,
+        feed?.tts_voice,
+        feed?.cover_image_url || undefined
+      );
+      downloadedFilePath = introResult.filePath;
+      durationSeconds = introResult.durationSeconds;
+
+      // Clean up original downloaded YouTube file if a concatenated one was created
+      if (downloadedFilePath !== originalPath) {
+        try {
+          if (fs.existsSync(originalPath)) {
+            fs.unlinkSync(originalPath);
+          }
+        } catch (e) {
+          console.error('Failed to clean up original downloaded YouTube video:', e);
+        }
+      }
     } else {
       await updateIngestion(ingestionId, { status: '1/4: Extracting article...' });
       const voicePreference = feed?.tts_voice;
@@ -87,12 +119,20 @@ export async function POST(request: Request) {
     await updateIngestion(ingestionId, { status: isVideo ? `3/4: Streaming ${fileExtension.toUpperCase()}...` : `3/4: Mastering & Streaming ${fileExtension.toUpperCase()}...` });
     
     const { writeStream, uploadPromise } = streamUpload(`content/${fileId}.${fileExtension}`, contentType);
+    activeWriteStream = writeStream;
     
     if (isVideo) {
       if (!downloadedFilePath) {
         throw new Error('Downloaded video file path is missing');
       }
+      if (!fs.existsSync(downloadedFilePath)) {
+        throw new Error(`Downloaded video file not found on disk at: ${downloadedFilePath}`);
+      }
       const readStream = fs.createReadStream(downloadedFilePath);
+      readStream.on('error', (err) => {
+        console.error(`Read stream error for ${downloadedFilePath}:`, err);
+        writeStream.destroy(err);
+      });
       readStream.pipe(writeStream);
     } else {
       // Process audio and pipe to write stream
@@ -182,6 +222,14 @@ export async function POST(request: Request) {
     console.error(`Worker error for ingestion ${ingestionId}:`, error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     logActivity({ feedId, level: 'error', category: 'ingestion', message: `Ingestion failed: ${message}`, details: url });
+    
+    if (activeWriteStream && !activeWriteStream.destroyed) {
+      try {
+        activeWriteStream.destroy(error instanceof Error ? error : new Error(message));
+      } catch (destroyError) {
+        console.error('Failed to destroy activeWriteStream:', destroyError);
+      }
+    }
     
     // Mark as failed
     await updateIngestion(ingestionId, { status: 'failed', error: message });
