@@ -38,7 +38,12 @@ export async function POST(request: Request) {
       ...(chat_webhook_url && { chat_webhook_url }),
     });
 
-    logActivity({ feedId: feed.id!, level: 'info', category: 'feed', message: 'Feed created' });
+    const host = request.headers.get('host') || 'localhost:3000';
+    const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
+    const hostUrl = `${protocol}://${host}`;
+    const feedUrl = `${hostUrl}/feed/${slug}`;
+
+    logActivity({ feedId: feed.id!, level: 'info', category: 'feed', message: 'Feed created', details: feedUrl });
 
     return NextResponse.json({ success: true, feed });
   } catch (error: unknown) {

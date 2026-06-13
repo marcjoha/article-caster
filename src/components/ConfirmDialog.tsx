@@ -1,4 +1,5 @@
 'use client';
+import { useEffect } from 'react';
 
 interface ConfirmDialogProps {
   title: string;
@@ -19,6 +20,26 @@ export default function ConfirmDialog({
   isLoading = false,
   hideCancel = false,
 }: ConfirmDialogProps) {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const w = window as unknown as { __openModals?: number };
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    w.__openModals = (w.__openModals || 0) + 1;
+
+    return () => {
+      w.__openModals = Math.max(0, (w.__openModals || 0) - 1);
+      if ((w.__openModals || 0) === 0) {
+        document.body.style.overflow = prevBodyOverflow || '';
+        document.documentElement.style.overflow = prevHtmlOverflow || '';
+      }
+    };
+  }, []);
+
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,

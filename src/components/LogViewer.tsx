@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Fragment } from 'react';
 import ConfirmDialog from './ConfirmDialog';
 
 interface LogEntry {
@@ -13,6 +13,7 @@ interface LogEntry {
 
 interface LogViewerProps {
   feedId: string;
+  feedSlug?: string;
 }
 
 
@@ -26,10 +27,42 @@ function formatAbsoluteTime(dateStr: string): string {
   }
 }
 
+function extractUrl(details?: string): string {
+  if (!details) return '';
+  const match = details.match(/https?:\/\/[^\s"'\)]+/);
+  if (!match) return '';
+  let url = match[0];
+  while (url && ['.', ',', ';', '?', '!'].includes(url.slice(-1))) {
+    url = url.slice(0, -1);
+  }
+  return url;
+}
 
 
-export default function LogViewer({ feedId }: LogViewerProps) {
+
+export default function LogViewer({ feedId, feedSlug }: LogViewerProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (typeof window === 'undefined') return;
+
+    const w = window as unknown as { __openModals?: number };
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    w.__openModals = (w.__openModals || 0) + 1;
+
+    return () => {
+      w.__openModals = Math.max(0, (w.__openModals || 0) - 1);
+      if ((w.__openModals || 0) === 0) {
+        document.body.style.overflow = prevBodyOverflow || '';
+        document.documentElement.style.overflow = prevHtmlOverflow || '';
+      }
+    };
+  }, [isOpen]);
 
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -74,19 +107,27 @@ export default function LogViewer({ feedId }: LogViewerProps) {
   // Extract unique URLs from details field
   const uniqueUrls = useMemo(() => {
     const urls = new Set<string>();
+    const hostUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const fallbackUrl = feedSlug ? `${hostUrl}/feed/${feedSlug}.xml` : `${hostUrl}/api/logs?feedId=${feedId}`;
     for (const entry of entries) {
-      if (entry.details && (entry.details.startsWith('http://') || entry.details.startsWith('https://'))) {
-        urls.add(entry.details);
+      const url = extractUrl(entry.details) || fallbackUrl;
+      if (url) {
+        urls.add(url);
       }
     }
     return Array.from(urls).sort((a, b) => a.localeCompare(b));
-  }, [entries]);
+  }, [entries, feedSlug, feedId]);
 
   // Filter entries by selected URL
   const filteredEntries = useMemo(() => {
     if (!filterUrl) return entries;
-    return entries.filter(e => e.details === filterUrl);
-  }, [entries, filterUrl]);
+    const hostUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const fallbackUrl = feedSlug ? `${hostUrl}/feed/${feedSlug}.xml` : `${hostUrl}/api/logs?feedId=${feedId}`;
+    return entries.filter(e => {
+      const url = extractUrl(e.details) || fallbackUrl;
+      return url === filterUrl;
+    });
+  }, [entries, filterUrl, feedSlug, feedId]);
 
   const handleClearLogs = useCallback(async () => {
     setIsClearing(true);
@@ -96,7 +137,12 @@ export default function LogViewer({ feedId }: LogViewerProps) {
       const res = await fetch(`/api/logs?${params}`, { method: 'DELETE' });
       if (res.ok) {
         if (filterUrl) {
-          setEntries(prev => prev.filter(e => e.details !== filterUrl));
+          const hostUrl = typeof window !== 'undefined' ? window.location.origin : '';
+          const fallbackUrl = feedSlug ? `${hostUrl}/feed/${feedSlug}.xml` : `${hostUrl}/api/logs?feedId=${feedId}`;
+          setEntries(prev => prev.filter(e => {
+            const url = extractUrl(e.details) || fallbackUrl;
+            return url !== filterUrl;
+          }));
           setFilterUrl('');
         } else {
           setEntries([]);
@@ -109,7 +155,7 @@ export default function LogViewer({ feedId }: LogViewerProps) {
       setIsClearing(false);
       setShowClearConfirm(false);
     }
-  }, [feedId, filterUrl]);
+  }, [feedId, filterUrl, feedSlug]);
 
   const clearMessage = filterUrl
     ? `Delete all log entries for ${filterUrl}? This cannot be undone.`
@@ -132,7 +178,7 @@ export default function LogViewer({ feedId }: LogViewerProps) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
           padding: '1rem'
         }}>
-          <div className="card log-viewer-dialog" style={{ padding: '2rem', width: '100%', maxWidth: '1100px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="card log-viewer-dialog" style={{ padding: '2rem', width: '100%', maxWidth: '1100px', position: 'relative', maxHeight: '90vh', overflowY: 'auto', textAlign: 'left' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <h2 style={{ marginTop: 0, marginBottom: 0 }}>Activity Log</h2>
               <div style={{ flex: 1 }} />
@@ -185,26 +231,64 @@ export default function LogViewer({ feedId }: LogViewerProps) {
               </div>
             ) : (
               <div className="log-list">
-                {filteredEntries.map(entry => {
-                  const fullUrl = entry.details || '—';
-                  return (
-                    <div key={entry.id} className={`log-entry ${entry.level === 'error' ? 'log-entry-error' : ''}`}>
-                      <div className="log-entry-top">
-                        <div className="log-message" title={entry.message}>
-                          {entry.message}
-                        </div>
-                        <span className="log-timestamp">
-                          {formatAbsoluteTime(entry.created_at)}
-                        </span>
-                      </div>
-                      {!filterUrl && (
-                        <div className="log-entry-url" title={entry.details || ''}>
-                          {fullUrl}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                  <tbody>
+                    {filteredEntries.map(entry => {
+                      const hostUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                      const fallbackUrl = feedSlug ? `${hostUrl}/feed/${feedSlug}.xml` : `${hostUrl}/api/logs?feedId=${feedId}`;
+                      const displayUrl = extractUrl(entry.details) || fallbackUrl;
+                      const isError = entry.level === 'error';
+                      return (
+                        <Fragment key={entry.id}>
+                          {/* First Row */}
+                          <tr style={{ borderBottom: 'none' }}>
+                            <td style={{
+                              padding: '0.75rem 0 0.25rem 0',
+                              textAlign: 'left',
+                              verticalAlign: 'top',
+                              fontSize: '0.8rem',
+                              fontWeight: 500,
+                              color: '#38bdf8',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'clip',
+                              WebkitMaskImage: 'linear-gradient(to right, #000 80%, transparent 100%)',
+                              maskImage: 'linear-gradient(to right, #000 80%, transparent 100%)',
+                            }}>
+                              {displayUrl}
+                            </td>
+                            <td style={{
+                              padding: '0.75rem 0 0.25rem 1rem',
+                              textAlign: 'right',
+                              verticalAlign: 'top',
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.75rem',
+                              whiteSpace: 'nowrap',
+                              width: '130px',
+                            }}>
+                              {formatAbsoluteTime(entry.created_at)}
+                            </td>
+                          </tr>
+                          {/* Second Row */}
+                          <tr style={{ borderBottom: '1px solid rgba(51, 65, 85, 0.4)' }}>
+                            <td colSpan={2} style={{
+                              padding: '0 0 0.75rem 0',
+                              textAlign: 'left',
+                              verticalAlign: 'top',
+                              color: isError ? '#f87171' : 'var(--text-primary)',
+                              fontSize: '0.875rem',
+                              lineHeight: '1.5',
+                              wordBreak: 'break-word',
+                              whiteSpace: 'normal',
+                            }}>
+                              {entry.message}
+                            </td>
+                          </tr>
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
                 {filteredEntries.length === 0 && (
                   <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                     No events for this URL.

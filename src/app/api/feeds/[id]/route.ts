@@ -6,6 +6,13 @@ import { logActivity } from '@/lib/logger';
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+
+    const feedDoc = await db.collection('feeds').doc(id).get();
+    if (!feedDoc.exists) {
+      return NextResponse.json({ error: 'Feed not found' }, { status: 404 });
+    }
+    const feedData = feedDoc.data();
+    const slug = feedData?.unguessable_slug || '';
     
     const formData = await request.formData();
     const title = formData.get('title') as string;
@@ -21,12 +28,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     
     if (coverImageFile) {
       // Delete the old cover image if it exists
-      const feedDoc = await db.collection('feeds').doc(id).get();
-      if (feedDoc.exists) {
-        const feedData = feedDoc.data();
-        if (feedData && feedData.cover_image_url) {
-          await deleteFile(feedData.cover_image_url);
-        }
+      if (feedData && feedData.cover_image_url) {
+        await deleteFile(feedData.cover_image_url);
       }
 
       const buffer = Buffer.from(await coverImageFile.arrayBuffer());
@@ -47,7 +50,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (chat_webhook_url !== null) updates.chat_webhook_url = chat_webhook_url;
 
     await updateFeed(id, updates);
-    logActivity({ feedId: id, level: 'info', category: 'feed', message: 'Feed settings updated' });
+    
+    const host = request.headers.get('host') || 'localhost:3000';
+    const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
+    const hostUrl = `${protocol}://${host}`;
+    const feedUrl = `${hostUrl}/feed/${slug}`;
+
+    logActivity({ feedId: id, level: 'info', category: 'feed', message: 'Feed settings updated', details: feedUrl });
     
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
@@ -60,7 +69,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    logActivity({ feedId: id, level: 'warn', category: 'feed', message: 'Feed deleted' });
+
+    const feedDoc = await db.collection('feeds').doc(id).get();
+    const feedData = feedDoc.exists ? feedDoc.data() : null;
+    const slug = feedData?.unguessable_slug || '';
+
+    const host = request.headers.get('host') || 'localhost:3000';
+    const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
+    const hostUrl = `${protocol}://${host}`;
+    const feedUrl = `${hostUrl}/feed/${slug}`;
+
+    logActivity({ feedId: id, level: 'warn', category: 'feed', message: 'Feed deleted', details: feedUrl });
     await deleteFeed(id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

@@ -74,7 +74,7 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
       sourceLabel = 'Video from <b>YouTube</b>';
       break;
     case 'pdf':
-      sourceLabel = '<b>Uploaded PDF</b>';
+      sourceLabel = `PDF from <b>${domain}</b>`;
       break;
     default:
       sourceLabel = `Article from <b>${domain}</b>`;
@@ -82,7 +82,7 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
 
   summaryWidgets.push({
     decoratedText: {
-      startIcon: { materialIcon: { name: episode.origin === 'pdf' ? 'picture_as_pdf' : 'language' } },
+      startIcon: { materialIcon: { name: 'language' } },
       text: sourceLabel,
     },
   });

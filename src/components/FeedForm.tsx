@@ -41,6 +41,28 @@ export default function FeedForm({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [errorModalMessage, setErrorModalMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (typeof window === 'undefined') return;
+
+    const w = window as unknown as { __openModals?: number };
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    w.__openModals = (w.__openModals || 0) + 1;
+
+    return () => {
+      w.__openModals = Math.max(0, (w.__openModals || 0) - 1);
+      if ((w.__openModals || 0) === 0) {
+        document.body.style.overflow = prevBodyOverflow || '';
+        document.documentElement.style.overflow = prevHtmlOverflow || '';
+      }
+    };
+  }, [isOpen]);
+
   const router = useRouter();
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -171,7 +193,7 @@ export default function FeedForm({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
           padding: '1rem'
         }}>
-          <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative', maxHeight: '90vh', overflowY: 'auto'}}>
+          <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative', maxHeight: '90vh', overflowY: 'auto', textAlign: 'left'}}>
             <button 
               onClick={handleClose}
               style={{

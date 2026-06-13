@@ -110,9 +110,6 @@ export function getUrlDisplayString(
   if (episodes) {
     const match = episodes.find(e => e.source_url === urlStr);
     if (match) {
-      if (urlStr.includes('/content/pdf/')) {
-        return `Uploaded PDF / ${match.title}`;
-      }
       let domain = '';
       try {
         domain = new URL(urlStr).hostname.replace(/^www\./, '');
@@ -127,10 +124,6 @@ export function getUrlDisplayString(
   try {
     const url = new URL(urlStr);
     const domain = url.hostname.replace(/^www\./, '');
-    
-    if (url.hostname.includes('storage.googleapis.com') && url.pathname.includes('/content/pdf/')) {
-      return 'Uploaded PDF';
-    }
     
     // For YouTube videos
     if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {

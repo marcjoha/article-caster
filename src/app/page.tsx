@@ -73,7 +73,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         buttonText="Edit" 
                         buttonTitle="Edit Podcast Settings"
                       />
-                      <LogViewer feedId={selectedFeed.id!} />
+                      <LogViewer feedId={selectedFeed.id!} feedSlug={selectedFeed.unguessable_slug} />
                       <DeleteFeedButton feedId={selectedFeed.id!} />
                     </div>
                   </div>
@@ -180,9 +180,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                               {item.source_url && (
                                 <>
                                   <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>•</span>
-                                  {item.origin === 'pdf' ? (
-                                    'Uploaded PDF'
-                                  ) : (() => {
+                                  {(() => {
                                     try {
                                       return new URL(item.source_url).hostname.replace(/^www\./, '');
                                     } catch {

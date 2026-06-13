@@ -55,6 +55,14 @@ Respond with ONLY valid JSON matching this schema:
       ],
       config: {
         responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            title: { type: 'STRING' },
+            htmlContent: { type: 'STRING' }
+          },
+          required: ['title', 'htmlContent']
+        },
         safetySettings: [
           { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
           { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },

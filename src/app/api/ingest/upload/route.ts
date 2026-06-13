@@ -56,8 +56,8 @@ export async function POST(request: Request) {
       feedId,
       level: 'info',
       category: 'ingestion',
-      message: `PDF file "${file.name}" uploaded successfully`,
-      details: `Saved to ${gcsPublicUrl} (${(file.size / 1024 / 1024).toFixed(2)} MB)`
+      message: `PDF file "${file.name}" uploaded successfully (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+      details: gcsPublicUrl
     });
 
     logActivity({

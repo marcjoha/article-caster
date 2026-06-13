@@ -103,13 +103,23 @@ export function WatchVideoButton({ videoUrl, title }: { videoUrl: string; title:
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    if (showModal) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    if (!showModal) return;
+    if (typeof window === 'undefined') return;
+
+    const w = window as unknown as { __openModals?: number };
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    w.__openModals = (w.__openModals || 0) + 1;
+
     return () => {
-      document.body.style.overflow = 'unset';
+      w.__openModals = Math.max(0, (w.__openModals || 0) - 1);
+      if ((w.__openModals || 0) === 0) {
+        document.body.style.overflow = prevBodyOverflow || '';
+        document.documentElement.style.overflow = prevHtmlOverflow || '';
+      }
     };
   }, [showModal]);
 
@@ -214,13 +224,23 @@ export function ListenAudioButton({ audioUrl, title, coverImageUrl }: { audioUrl
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    if (showModal) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    if (!showModal) return;
+    if (typeof window === 'undefined') return;
+
+    const w = window as unknown as { __openModals?: number };
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    w.__openModals = (w.__openModals || 0) + 1;
+
     return () => {
-      document.body.style.overflow = 'unset';
+      w.__openModals = Math.max(0, (w.__openModals || 0) - 1);
+      if ((w.__openModals || 0) === 0) {
+        document.body.style.overflow = prevBodyOverflow || '';
+        document.documentElement.style.overflow = prevHtmlOverflow || '';
+      }
     };
   }, [showModal]);
 
@@ -278,7 +298,7 @@ export function ListenAudioButton({ audioUrl, title, coverImageUrl }: { audioUrl
               }}
             >
               <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
-                Listen to Episode
+                {title}
               </h3>
               <button
                 onClick={() => setShowModal(false)}

@@ -340,7 +340,7 @@ export interface LogEntry {
 
 const LOG_RETENTION_CAP = 500;
 
-export const createLogEntry = async (entry: Omit<LogEntry, 'id' | 'created_at'>) => {
+export const createLogEntry = async (entry: Omit<LogEntry, 'id' | 'created_at'> & { details: string }) => {
   const docRef = db.collection('logs').doc();
   const data: LogEntry = {
     ...entry,
@@ -384,13 +384,27 @@ export const getLogEntries = async (feedId: string, limit = 200): Promise<LogEnt
 };
 
 export const deleteLogsByFeedId = async (feedId: string, details?: string): Promise<void> => {
-  let query: FirebaseFirestore.Query = db.collection('logs').where('feed_id', '==', feedId);
-  if (details) {
-    query = query.where('details', '==', details);
-  }
+  const query: FirebaseFirestore.Query = db.collection('logs').where('feed_id', '==', feedId);
   const snapshot = await query.get();
   if (snapshot.empty) return;
   const batch = db.batch();
-  snapshot.docs.forEach(doc => batch.delete(doc.ref));
-  await batch.commit();
+  let deletedCount = 0;
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    if (details) {
+      const storedDetails = data.details || '';
+      const extracted = storedDetails.match(/https?:\/\/[^\s"'\)]+/);
+      const extractedUrl = extracted ? extracted[0] : '';
+      if (storedDetails === details || extractedUrl === details) {
+        batch.delete(doc.ref);
+        deletedCount++;
+      }
+    } else {
+      batch.delete(doc.ref);
+      deletedCount++;
+    }
+  });
+  if (deletedCount > 0) {
+    await batch.commit();
+  }
 };

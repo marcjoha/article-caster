@@ -10,7 +10,7 @@ export async function logActivity(entry: {
   level: 'info' | 'warn' | 'error';
   category: string;
   message: string;
-  details?: string;
+  details: string;
 }): Promise<void> {
   // Skip Firestore writes for missing/empty feedIds (e.g. test-webhook calls).
   // This prevents orphan log entries referencing non-existent feeds.

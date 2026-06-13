@@ -34,6 +34,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
    - Each feed maintains a per-feed activity log that records important pipeline events: ingestion lifecycle (success, failure, dedup), RSS cron syncs, Chat notification outcomes, and feed/episode management actions.
    - The log is accessible via a "Log" button in the feed header.
    - Clicking the button opens a modal dialog showing timestamped log entries, each color-coded by severity (info/warn/error) and tagged by category (ingestion/rss/chat/feed/episode).
+   - **Required URL details**: Every log entry has a strictly **required** `details` field containing exactly and only a valid URL. This URL acts as a key identifying the resource (such as the source article URL, the ingested media URL, or the feed's public RSS subscription URL for feed-level events). The second row of each log entry displays this URL directly.
    - The log auto-refreshes every 5 seconds while the modal is open.
    - Log retention is capped at 500 entries per feed; oldest entries are purged on each write.
 ## Data Model
@@ -42,7 +43,7 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 *   **Items**: `id`, `feed_id`, `title`, `description`, `source_url`, `media_url` (Cloud Storage path), `type` (`audio` | `video`), `size_bytes`, `duration_seconds`, `origin` (`article` | `youtube` | `rss` | `pdf`), `created_at`
 *   **Ingestions**: `id`, `feed_id`, `url`, `status`, `error`, `origin` (`article` | `youtube` | `rss` | `pdf`), `created_at` — ephemeral work-in-progress records, auto-deleted on successful completion. Only pending/failed records exist at any time.
 *   **Syndications**: `id`, `feed_id`, `url`, `title`, `last_checked_at`, `created_at`
-*   **Logs**: `id`, `feed_id`, `level` (info | warn | error), `category` (ingestion | rss | chat | feed | episode), `message`, `details` (optional), `created_at` — activity log entries, capped at 500 per feed. Cascade-deleted with feed.
+*   **Logs**: `id`, `feed_id`, `level` (info | warn | error), `category` (ingestion | rss | chat | feed | episode), `message`, `details` (required, strictly a URL), `created_at` — activity log entries, capped at 500 per feed. Cascade-deleted with feed.
 
 ## Technology Stack
 
