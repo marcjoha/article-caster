@@ -77,7 +77,23 @@ Per `RULES.md`, both `SPEC.md` and `README.md` must stay current with the codeba
 - Ensure the GCP topology image in `README.md` reflects what is currently deployed.
 - If `SPEC.md` has drifted from the implementation, flag the discrepancy to the user before modifying it.
 
-## 10. Build Verification
+## 10. Production Data & Storage Integrity Verification
+
+Actively check and preserve the integrity of the live Firestore database and Google Cloud Storage (GCS) assets to keep the production system synchronized and free of orphaned assets.
+
+Run the production data and date integrity verifier:
+// turbo
+```bash
+npx tsx scripts/verify-data-integrity.ts
+```
+
+If any database schema issues, invalid log details URLs (which must strictly be clean URLs), or orphaned GCS files are found, run the integrity repair script to restore 100% data and storage compliance:
+// turbo
+```bash
+npx tsx scripts/repair-data-integrity.ts
+```
+
+## 11. Build Verification
 
 Run a production build to confirm nothing was broken during cleanup.
 // turbo
@@ -87,11 +103,13 @@ npm run build
 
 If the build fails, fix the issue before proceeding.
 
-## 11. Summary Report
+## 12. Summary Report
 
 After all cleanup steps are complete, provide a concise summary:
 - **Files deleted** — list each file removed and why.
 - **Dependencies removed** — list uninstalled packages.
 - **Files modified** — list files formatted or updated.
 - **Refactoring applied** — list where Agent Skills were used to improve code quality.
+- **Production Integrity status** — report the findings of the data/storage integrity checks and whether any repairs were executed.
 - **Build status** — confirm the build passed.
+
