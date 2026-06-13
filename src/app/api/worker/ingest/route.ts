@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { extractArticleContent } from '@/lib/ingestion/article';
+import { extractArticleContent, parseHtmlToTextBlocks } from '@/lib/ingestion/article';
 import { extractPdfContent } from '@/lib/ingestion/pdf';
 import { synthesizeSpeech } from '@/lib/ingestion/tts';
 import { extractYoutubeAudio } from '@/lib/ingestion/youtube';
@@ -14,7 +14,7 @@ import fs from 'fs';
 import { getProductionUrl } from '@/lib/gcloud';
 import crypto from 'crypto';
 import { Writable } from 'stream';
-import { JSDOM } from 'jsdom';
+// JSDOM import removed as parsing is refactored into shared parseHtmlToTextBlocks helper
 
 export async function POST(request: Request) {
   const { ingestionId, feedId, url, origin, published_at, syndication_title } = await request.json();
@@ -158,54 +158,8 @@ export async function POST(request: Request) {
       const domain = new URL(finalUrl).hostname.replace(/^www\./, '');
       const voicePreference = feed?.tts_voice;
 
-      // Extract blocks
-      const contentDoc = new JSDOM(htmlContent);
-      const cleanedContent = (contentDoc.window.document.body.textContent || '')
-        .replace(/[ \t]+/g, ' ')
-        .replace(/\n(?:[ \t]*\n)+/g, '\n\n')
-        .trim();
-
-      const elements = contentDoc.window.document.body.children;
-      const textBlocks: string[] = [];
-
-      for (const el of Array.from(elements)) {
-        const text = el.textContent?.trim();
-        if (!text) continue;
-
-        const tagName = el.tagName.toLowerCase();
-        const pauseStr = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'].includes(tagName)
-          ? '\n\n'
-          : '\n';
-
-        let currentChunk = '';
-        const sentences = text.split(/(?<=[.!?])\s+|(?=\n)/);
-
-        for (const sentence of sentences) {
-          if (!sentence.trim()) continue;
-
-          if (currentChunk.length + sentence.length > 300) {
-            if (currentChunk) {
-              textBlocks.push(`${currentChunk.trim()}${pauseStr}`);
-              currentChunk = '';
-            }
-
-            let remaining = sentence;
-            while (remaining.length > 300) {
-              const chars = Array.from(remaining);
-              const safeChunk = chars.slice(0, 300).join('');
-              textBlocks.push(`${safeChunk}${pauseStr}`);
-              remaining = chars.slice(300).join('');
-            }
-            currentChunk = remaining;
-          } else {
-            currentChunk += (currentChunk ? ' ' : '') + sentence;
-          }
-        }
-
-        if (currentChunk.trim()) {
-          textBlocks.push(`${currentChunk.trim()}${pauseStr}`);
-        }
-      }
+      // Extract blocks using the shared parseHtmlToTextBlocks helper
+      const { textBlocks, textContent: cleanedContent } = parseHtmlToTextBlocks(htmlContent);
 
       // Add speech prefix message
       textBlocks.unshift(`This is a PDF document titled ${title} from ${domain}.\n\n`);

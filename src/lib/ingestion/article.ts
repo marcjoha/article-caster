@@ -211,16 +211,28 @@ ${article.content}`;
     console.error("LLM cleanup failed, falling back to original extracted content:", error);
   }
 
-  const contentDoc = new JSDOM(cleanedHtml);
+  const { textBlocks, textContent: cleanedContent } = parseHtmlToTextBlocks(cleanedHtml);
+
+  return {
+    title: article.title || 'Unknown Title',
+    textContent: cleanedContent,
+    language,
+    textBlocks,
+  };
+};
+
+/**
+ * Parses clean HTML content into short, spoken-word-optimized text blocks
+ * suitable for text-to-speech generation, as well as a plain text string.
+ */
+export function parseHtmlToTextBlocks(htmlContent: string): { textBlocks: string[]; textContent: string } {
+  const contentDoc = new JSDOM(htmlContent);
 
   const cleanedContent = (contentDoc.window.document.body.textContent || '')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n(?:[ \t]*\n)+/g, '\n\n')
     .trim();
 
-
-
-  // Generate SSML blocks from HTML content
   const elements = contentDoc.window.document.body.children;
   const textBlocks: string[] = [];
   
@@ -263,10 +275,5 @@ ${article.content}`;
     }
   }
 
-  return {
-    title: article.title || 'Unknown Title',
-    textContent: cleanedContent,
-    language,
-    textBlocks,
-  };
-};
+  return { textBlocks, textContent: cleanedContent };
+}
