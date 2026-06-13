@@ -6,7 +6,7 @@ import { formatDateTime, looksLikeRssFeed, looksLikeArticleUrl, looksLikeYoutube
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function IngestionTabs({ feedId, syndications }: { feedId: string, syndications: Syndication[] }) {
-  const [activeTab, setActiveTab] = useState<'article' | 'youtube' | 'rss'>('article');
+  const [activeTab, setActiveTab] = useState<'article' | 'youtube' | 'rss' | 'pdf'>('article');
   const router = useRouter();
 
   // Article/YouTube form state
@@ -20,6 +20,12 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [initialAction, setInitialAction] = useState('future');
   const [errorModalMessage, setErrorModalMessage] = useState<string | null>(null);
+
+  // PDF upload state
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Client-side URL validation to prevent cross-posting
   const articleUrlWarning = activeTab === 'article' && url && looksLikeYoutubeUrl(url)
@@ -131,35 +137,177 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
     setSyncingId(null);
   };
 
-  const handleTabChange = (tab: 'article' | 'youtube' | 'rss') => {
+  const handleTabChange = (tab: 'article' | 'youtube' | 'rss' | 'pdf') => {
     setActiveTab(tab);
     setUrl('');
     setRssUrl('');
+    setPdfFile(null);
+    setUploadProgress(0);
+    setIsUploading(false);
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        setPdfFile(file);
+      } else {
+        setErrorModalMessage('Only PDF files are supported.');
+      }
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        setPdfFile(file);
+      } else {
+        setErrorModalMessage('Only PDF files are supported.');
+      }
+    }
+  };
+
+  const handleUploadPdf = async () => {
+    if (!pdfFile) return;
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const formData = new FormData();
+    formData.append('file', pdfFile);
+    formData.append('feedId', feedId);
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        setUploadProgress(percent);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      setIsUploading(false);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setPdfFile(null);
+        router.refresh();
+      } else {
+        let errMsg = 'Failed to upload PDF.';
+        try {
+          const res = JSON.parse(xhr.responseText);
+          errMsg = res.error || errMsg;
+        } catch {
+          errMsg = `Error ${xhr.status}: ${xhr.statusText || 'Upload failed'}`;
+        }
+        setErrorModalMessage(errMsg);
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      setIsUploading(false);
+      setErrorModalMessage('Network error during upload.');
+    });
+
+    xhr.open('POST', '/api/ingest/upload');
+    xhr.send(formData);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
     <div className="card" style={{padding: '1.5rem', width: '100%', maxWidth: '100%'}}>
-      <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #334155', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #334155', marginBottom: '1.5rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <button
           onClick={() => handleTabChange('article')}
           style={{
             background: 'none',
             border: 'none',
             padding: '0.5rem 1rem',
-            color: activeTab === 'article' ? '#fff' : '#94a3b8',
-            borderBottom: activeTab === 'article' ? '2px solid #3b82f6' : '2px solid transparent',
+            color: activeTab === 'article' ? '#94a3b8' : '#64748b',
+            borderBottom: activeTab === 'article' ? '2px solid #94a3b8' : '2px solid transparent',
             cursor: 'pointer',
             fontSize: '1rem',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
+            whiteSpace: 'nowrap',
+            transition: 'color 0.2s, border-color 0.2s',
           }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1.2rem', height: '1.2rem' }}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            style={{
+              width: '1.2rem',
+              height: '1.2rem',
+              color: '#94a3b8',
+              opacity: activeTab === 'article' ? 1 : 0.6,
+              transition: 'opacity 0.2s',
+            }}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
           </svg>
           Article
+        </button>
+        <button
+          onClick={() => handleTabChange('pdf')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            color: activeTab === 'pdf' ? '#fca5a5' : '#64748b',
+            borderBottom: activeTab === 'pdf' ? '2px solid #fca5a5' : '2px solid transparent',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            whiteSpace: 'nowrap',
+            transition: 'color 0.2s, border-color 0.2s',
+          }}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            style={{
+              width: '1.2rem',
+              height: '1.2rem',
+              color: '#fca5a5',
+              opacity: activeTab === 'pdf' ? 1 : 0.6,
+              transition: 'opacity 0.2s',
+            }}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+          </svg>
+          PDF
         </button>
         <button
           onClick={() => handleTabChange('rss')}
@@ -167,17 +315,32 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
             background: 'none',
             border: 'none',
             padding: '0.5rem 1rem',
-            color: activeTab === 'rss' ? '#fff' : '#94a3b8',
-            borderBottom: activeTab === 'rss' ? '2px solid #3b82f6' : '2px solid transparent',
+            color: activeTab === 'rss' ? '#60a5fa' : '#64748b',
+            borderBottom: activeTab === 'rss' ? '2px solid #60a5fa' : '2px solid transparent',
             cursor: 'pointer',
             fontSize: '1rem',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
+            whiteSpace: 'nowrap',
+            transition: 'color 0.2s, border-color 0.2s',
           }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1.2rem', height: '1.2rem' }}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            style={{
+              width: '1.2rem',
+              height: '1.2rem',
+              color: '#60a5fa',
+              opacity: activeTab === 'rss' ? 1 : 0.6,
+              transition: 'opacity 0.2s',
+            }}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
           </svg>
           RSS
@@ -192,8 +355,8 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
             background: 'none',
             border: 'none',
             padding: '0.5rem 1rem',
-            color: activeTab === 'youtube' ? '#fff' : (process.env.NODE_ENV !== 'development' ? '#475569' : '#94a3b8'),
-            borderBottom: activeTab === 'youtube' ? '2px solid #3b82f6' : '2px solid transparent',
+            color: activeTab === 'youtube' ? '#f87171' : (process.env.NODE_ENV !== 'development' ? '#475569' : '#64748b'),
+            borderBottom: activeTab === 'youtube' ? '2px solid #f87171' : '2px solid transparent',
             cursor: process.env.NODE_ENV !== 'development' ? 'not-allowed' : 'pointer',
             fontSize: '1rem',
             fontWeight: 600,
@@ -201,9 +364,24 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
             alignItems: 'center',
             gap: '0.5rem',
             opacity: process.env.NODE_ENV !== 'development' ? 0.5 : 1,
+            whiteSpace: 'nowrap',
+            transition: 'color 0.2s, border-color 0.2s',
           }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1.2rem', height: '1.2rem' }}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            style={{
+              width: '1.2rem',
+              height: '1.2rem',
+              color: '#f87171',
+              opacity: activeTab === 'youtube' ? 1 : 0.6,
+              transition: 'opacity 0.2s',
+            }}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
           </svg>
@@ -230,6 +408,84 @@ export default function IngestionTabs({ feedId, syndications }: { feedId: string
             )}
           </div>
         </form>
+      ) : activeTab === 'pdf' ? (
+        <div>
+          {!pdfFile ? (
+            <div
+              className={`pdf-dropzone ${dragActive ? 'drag-active' : ''}`}
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById('pdf-file-input')?.click()}
+            >
+              <input
+                id="pdf-file-input"
+                type="file"
+                accept="application/pdf"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+                disabled={isUploading}
+              />
+              <div className="pdf-dropzone-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '2.5rem', height: '2.5rem' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                </svg>
+              </div>
+              <p className="pdf-dropzone-text">
+                Drag & drop your PDF file here, or <span style={{ color: 'var(--accent-color)', textDecoration: 'underline' }}>browse</span>
+              </p>
+              <p className="pdf-dropzone-subtext">Supports PDF documents up to 20MB</p>
+            </div>
+          ) : (
+            <div className="pdf-file-preview">
+              <div className="pdf-file-info">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.5rem', height: '1.5rem', color: '#fca5a5', flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                <div className="pdf-file-name" title={pdfFile.name}>
+                  {pdfFile.name}
+                </div>
+                <div className="pdf-file-size">
+                  {formatFileSize(pdfFile.size)}
+                </div>
+              </div>
+
+              {isUploading && (
+                <div className="pdf-progress-wrapper">
+                  <div className="pdf-progress-bar-container">
+                    <div className="pdf-progress-bar-fill" style={{ width: `${uploadProgress}%` }}></div>
+                  </div>
+                  <div className="pdf-progress-status">
+                    <span>Uploading file...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="pdf-action-buttons">
+                <button
+                  type="button"
+                  className="btn-destructive"
+                  style={{ height: '2.25rem', padding: '0 1rem' }}
+                  onClick={() => setPdfFile(null)}
+                  disabled={isUploading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ height: '2.25rem', padding: '0 1rem' }}
+                  onClick={handleUploadPdf}
+                  disabled={isUploading}
+                >
+                  {isUploading ? 'Uploading...' : 'Upload & Ingest'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         <div>
           <form onSubmit={handleAddRss} style={{ marginBottom: '1.5rem' }}>

@@ -143,11 +143,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                           <td>
                             <div className="article-title" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', width: '100%' }}>
                               <div style={{
-                                color: '#94a3b8',
+                                color: item.origin === 'youtube' ? '#f87171' : item.origin === 'pdf' ? '#fca5a5' : item.origin === 'rss' ? '#60a5fa' : '#94a3b8',
                                 flexShrink: 0,
                                 display: 'flex',
                                 alignItems: 'center'
-                              }} title={item.origin === 'youtube' ? 'YouTube Ingestion' : item.origin === 'rss' ? 'RSS Ingestion' : 'Article Ingestion'}>
+                              }} title={item.origin === 'youtube' ? 'YouTube Ingestion' : item.origin === 'rss' ? 'RSS Ingestion' : item.origin === 'pdf' ? 'PDF Ingestion' : 'Article Ingestion'}>
                                 {item.origin === 'youtube' ? (
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -156,6 +156,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                                 ) : item.origin === 'rss' ? (
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                                  </svg>
+                                ) : item.origin === 'pdf' ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                                   </svg>
                                 ) : (
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
@@ -176,7 +180,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                               {item.source_url && (
                                 <>
                                   <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>•</span>
-                                  {(() => {
+                                  {item.origin === 'pdf' ? (
+                                    'Uploaded PDF'
+                                  ) : (() => {
                                     try {
                                       return new URL(item.source_url).hostname.replace(/^www\./, '');
                                     } catch {
