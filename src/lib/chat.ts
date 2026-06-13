@@ -73,13 +73,16 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
     case 'youtube':
       sourceLabel = 'Video from <b>YouTube</b>';
       break;
+    case 'pdf':
+      sourceLabel = '<b>Uploaded PDF</b>';
+      break;
     default:
       sourceLabel = `Article from <b>${domain}</b>`;
   }
 
   summaryWidgets.push({
     decoratedText: {
-      startIcon: { materialIcon: { name: 'language' } },
+      startIcon: { materialIcon: { name: episode.origin === 'pdf' ? 'picture_as_pdf' : 'language' } },
       text: sourceLabel,
     },
   });
@@ -94,6 +97,7 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
   // --- Section 2: Action buttons ---
   const buttons: Record<string, unknown>[] = [];
   const isVideo = episode.origin === 'youtube' || episode.mediaUrl.toLowerCase().endsWith('.mp4');
+  const isPdf = episode.origin === 'pdf';
 
   if (episode.mediaUrl) {
     buttons.push({
@@ -104,8 +108,8 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
   }
 
   buttons.push({
-    text: isVideo ? 'Watch original' : 'Read original',
-    icon: { materialIcon: { name: isVideo ? 'smart_display' : 'article' } },
+    text: isVideo ? 'Watch original' : isPdf ? 'Read PDF' : 'Read original',
+    icon: { materialIcon: { name: isVideo ? 'smart_display' : isPdf ? 'picture_as_pdf' : 'article' } },
     onClick: { openLink: { url: episode.sourceUrl } },
   });
 

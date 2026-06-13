@@ -8,7 +8,7 @@ dns.setDefaultResultOrder('ipv4first');
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
-  location: 'europe-west1'
+  location: 'global'
 });
 
 /** Minimum character count for extracted content to be considered a real article. */
@@ -45,7 +45,7 @@ Text to evaluate:
 ${sample}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         safetySettings: [
@@ -57,8 +57,21 @@ ${sample}`;
       }
     });
 
-    const raw = response.text?.trim().replace(/^```json\n?/i, '').replace(/\n?```$/i, '') || '';
-    const verdict = JSON.parse(raw) as { isArticle: boolean; reason: string };
+    const raw = response.text?.trim() || '';
+    
+    // Robustly extract the JSON object from the response string,
+    // ignoring any markdown code fences, leading/trailing explanations, or garbage.
+    let jsonString = raw;
+    const firstBrace = raw.indexOf('{');
+    const lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      jsonString = raw.substring(firstBrace, lastBrace + 1);
+    } else {
+      // Fallback: strip standard markdown code blocks
+      jsonString = raw.replace(/^```json\n?/i, '').replace(/\n?```$/i, '').trim();
+    }
+
+    const verdict = JSON.parse(jsonString) as { isArticle: boolean; reason: string };
     return verdict;
   } catch (error) {
     // Fail open: if the quality gate itself errors, let content through
@@ -178,7 +191,7 @@ HTML:
 ${article.content}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         safetySettings: [

@@ -7,12 +7,16 @@ const storage = new Storage({
 const bucketName = process.env.GCS_BUCKET_NAME!;
 const bucket = storage.bucket(bucketName);
 
-export const uploadFile = async (destinationPath: string, buffer: Buffer, contentType: string): Promise<string> => {
+export const uploadFile = async (destinationPath: string, buffer: Buffer, contentType: string, contentDisposition?: string): Promise<string> => {
   const file = bucket.file(destinationPath);
+  const metadata: { contentType: string; contentDisposition?: string } = {
+    contentType,
+  };
+  if (contentDisposition) {
+    metadata.contentDisposition = contentDisposition;
+  }
   await file.save(buffer, {
-    metadata: {
-      contentType,
-    },
+    metadata,
   });
   
   try {

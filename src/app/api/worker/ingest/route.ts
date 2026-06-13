@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { extractArticleContent } from '@/lib/ingestion/article';
+import { extractPdfContent } from '@/lib/ingestion/pdf';
 import { synthesizeSpeech } from '@/lib/ingestion/tts';
 import { extractYoutubeAudio } from '@/lib/ingestion/youtube';
 import { injectVideoIntro } from '@/lib/ingestion/videoIntro';
 import { summarizeContent } from '@/lib/ingestion/summarize';
 import { applyLoudnessNormalization } from '@/lib/audio';
-import { streamUpload, getFileMetadata, deleteFile } from '@/lib/storage';
+import { streamUpload, getFileMetadata, deleteFile, uploadFile } from '@/lib/storage';
 import { createFeedItem, updateFeedItem, getFeedItems, updateIngestion, addProcessedUrl, deleteIngestion, db, Feed } from '@/lib/firestore';
 import { notifyNewEpisode } from '@/lib/chat';
 import { logActivity } from '@/lib/logger';
@@ -13,6 +14,7 @@ import fs from 'fs';
 import { getProductionUrl } from '@/lib/gcloud';
 import crypto from 'crypto';
 import { Writable } from 'stream';
+import { JSDOM } from 'jsdom';
 
 export async function POST(request: Request) {
   const { ingestionId, feedId, url, origin, published_at, syndication_title } = await request.json();
@@ -31,6 +33,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ skipped: true });
   }
 
+  let finalUrl = url;
+  let finalOrigin = origin || 'article';
   let downloadedFilePath: string | null = null;
   let activeWriteStream: Writable | null = null;
 
@@ -38,22 +42,69 @@ export async function POST(request: Request) {
     const feedSnapshot = await db.collection('feeds').doc(feedId).get();
     const feed = feedSnapshot.data() as Feed | undefined;
 
-    const contentType_ = origin === 'youtube' ? 'YouTube video' : origin === 'rss' ? 'Blog post' : 'Article';
-    logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType_} ingestion started`, details: url });
+    // Stage 0: Auto-detect PDF URLs in standard article ingestion
+    if (finalOrigin === 'article') {
+      const isPdfUrl = finalUrl.toLowerCase().split('?')[0].endsWith('.pdf');
+      let isPdfMime = false;
+
+      try {
+        const headRes = await fetch(finalUrl, { method: 'HEAD', signal: AbortSignal.timeout(10000) });
+        const contentType = headRes.headers.get('content-type') || '';
+        if (contentType.toLowerCase().includes('application/pdf')) {
+          isPdfMime = true;
+        }
+      } catch (e) {
+        console.warn('HEAD request failed for auto-pdf check, falling back to GET or extension check:', e);
+      }
+
+      if (isPdfUrl || isPdfMime) {
+        logActivity({
+          feedId,
+          level: 'info',
+          category: 'ingestion',
+          message: 'Standard URL identified as PDF, downloading and auto-routing to PDF pipeline',
+          details: finalUrl
+        });
+
+        // Download the PDF file
+        const getRes = await fetch(finalUrl, { signal: AbortSignal.timeout(30000) });
+        if (!getRes.ok) {
+          throw new Error(`Failed to download PDF from URL (HTTP ${getRes.status})`);
+        }
+        const pdfArrayBuffer = await getRes.arrayBuffer();
+        const pdfBuffer = Buffer.from(pdfArrayBuffer);
+
+        // Generate SHA-256 content-based name
+        const contentHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+        const destinationPath = `content/pdf/${contentHash}.pdf`;
+
+        // Save PDF to GCS indefinitely with inline disposition
+        const gcsPublicUrl = await uploadFile(destinationPath, pdfBuffer, 'application/pdf', 'inline');
+
+        // Update pending ingestion record in Firestore
+        await updateIngestion(ingestionId, { url: gcsPublicUrl, origin: 'pdf' });
+
+        finalOrigin = 'pdf';
+        finalUrl = gcsPublicUrl;
+      }
+    }
+
+    const contentType_ = finalOrigin === 'youtube' ? 'YouTube video' : finalOrigin === 'rss' ? 'Blog post' : finalOrigin === 'pdf' ? 'PDF document' : 'Article';
+    logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType_} ingestion started`, details: finalUrl });
 
     let title = '';
     let description = '';
     let rawAudioInput: Buffer | string | (Buffer | string)[] | null = null;
     let durationSeconds = 0;
     
-    const isVideo = origin === 'youtube';
-    const fileId = crypto.createHash('sha256').update(`${feedId}-${url}`).digest('hex');
+    const isVideo = finalOrigin === 'youtube';
+    const fileId = crypto.createHash('sha256').update(`${feedId}-${finalUrl}`).digest('hex');
     const fileExtension = isVideo ? 'mp4' : 'mp3';
     const contentType = isVideo ? 'video/mp4' : 'audio/mpeg';
 
-    if (origin === 'youtube') {
+    if (finalOrigin === 'youtube') {
       await updateIngestion(ingestionId, { status: '1/4: Downloading YouTube video...' });
-      const result = await extractYoutubeAudio(url);
+      const result = await extractYoutubeAudio(finalUrl);
       title = result.title;
       durationSeconds = result.durationSeconds;
       downloadedFilePath = result.filePath;
@@ -63,7 +114,7 @@ export async function POST(request: Request) {
 
       await updateIngestion(ingestionId, { status: '2.5/4: Injecting video intro prefix...' });
       const originalPath = downloadedFilePath;
-      const domain = new URL(url).hostname.replace(/^www\./, '');
+      const domain = new URL(finalUrl).hostname.replace(/^www\./, '');
       const videoIntroMessage = feed?.audio_prefix_message
         ? `${feed.audio_prefix_message}\n\nThis is a video titled ${title} from ${domain}.`
         : `This is a video titled ${title} from ${domain}.`;
@@ -89,15 +140,99 @@ export async function POST(request: Request) {
           console.error('Failed to clean up original downloaded YouTube video:', e);
         }
       }
+    } else if (finalOrigin === 'pdf') {
+      await updateIngestion(ingestionId, { status: '1/4: Parsing PDF with Gemini...' });
+
+      // Download the PDF from finalUrl (which is a GCS URL)
+      const res = await fetch(finalUrl, { signal: AbortSignal.timeout(30000) });
+      if (!res.ok) {
+        throw new Error(`Failed to fetch PDF for parsing (HTTP ${res.status})`);
+      }
+      const arrayBuffer = await res.arrayBuffer();
+      const pdfBuffer = Buffer.from(arrayBuffer);
+
+      // Parse with Gemini
+      const { title: pdfTitle, htmlContent } = await extractPdfContent(pdfBuffer);
+      title = pdfTitle;
+
+      const domain = new URL(finalUrl).hostname.replace(/^www\./, '');
+      const voicePreference = feed?.tts_voice;
+
+      // Extract blocks
+      const contentDoc = new JSDOM(htmlContent);
+      const cleanedContent = (contentDoc.window.document.body.textContent || '')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n(?:[ \t]*\n)+/g, '\n\n')
+        .trim();
+
+      const elements = contentDoc.window.document.body.children;
+      const textBlocks: string[] = [];
+
+      for (const el of Array.from(elements)) {
+        const text = el.textContent?.trim();
+        if (!text) continue;
+
+        const tagName = el.tagName.toLowerCase();
+        const pauseStr = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'].includes(tagName)
+          ? '\n\n'
+          : '\n';
+
+        let currentChunk = '';
+        const sentences = text.split(/(?<=[.!?])\s+|(?=\n)/);
+
+        for (const sentence of sentences) {
+          if (!sentence.trim()) continue;
+
+          if (currentChunk.length + sentence.length > 300) {
+            if (currentChunk) {
+              textBlocks.push(`${currentChunk.trim()}${pauseStr}`);
+              currentChunk = '';
+            }
+
+            let remaining = sentence;
+            while (remaining.length > 300) {
+              const chars = Array.from(remaining);
+              const safeChunk = chars.slice(0, 300).join('');
+              textBlocks.push(`${safeChunk}${pauseStr}`);
+              remaining = chars.slice(300).join('');
+            }
+            currentChunk = remaining;
+          } else {
+            currentChunk += (currentChunk ? ' ' : '') + sentence;
+          }
+        }
+
+        if (currentChunk.trim()) {
+          textBlocks.push(`${currentChunk.trim()}${pauseStr}`);
+        }
+      }
+
+      // Add speech prefix message
+      textBlocks.unshift(`This is a PDF document titled ${title} from ${domain}.\n\n`);
+      if (feed?.audio_prefix_message) {
+        textBlocks.unshift(`${feed.audio_prefix_message}\n\n`);
+      }
+
+      await updateIngestion(ingestionId, { status: '2/4: Generating audio...' });
+
+      // Run summarization concurrently with TTS generation
+      const [ttsResult, summary] = await Promise.all([
+        synthesizeSpeech({ textBlocks, language: 'en-US', voicePreference }),
+        summarizeContent(title, cleanedContent),
+      ]);
+      description = summary;
+      rawAudioInput = ttsResult.audioBuffer;
+      durationSeconds = ttsResult.durationSeconds;
+
     } else {
       await updateIngestion(ingestionId, { status: '1/4: Extracting article...' });
       const voicePreference = feed?.tts_voice;
 
-      const extracted = await extractArticleContent(url);
+      const extracted = await extractArticleContent(finalUrl);
       title = extracted.title;
       
-      const domain = new URL(url).hostname.replace(/^www\./, '');
-      const originLabel = origin === 'rss' ? 'blog post' : 'article';
+      const domain = new URL(finalUrl).hostname.replace(/^www\./, '');
+      const originLabel = finalOrigin === 'rss' ? 'blog post' : 'article';
       extracted.textBlocks.unshift(`This is a ${originLabel} titled ${title} from ${domain}.\n\n`);
 
       if (feed?.audio_prefix_message) {
@@ -147,11 +282,8 @@ export async function POST(request: Request) {
 
     // Availability gate: verify the audio file is publicly accessible before
     // committing it to the podcast feed or notifying subscribers.
-    // This prevents broken episodes from reaching listeners.
     const headResponse = await fetch(mediaUrl, { method: 'HEAD' });
     if (!headResponse.ok) {
-      // Upload appeared to succeed but file is not publicly reachable — clean up
-      // the orphaned GCS object and fail the ingestion so it can be retried.
       deleteFile(mediaUrl).catch(e => console.error('Cleanup of unreachable media failed:', e));
       throw new Error(`Media file uploaded but not publicly accessible (HTTP ${headResponse.status}). Cleaned up orphan and failing ingestion for retry.`);
     }
@@ -159,14 +291,12 @@ export async function POST(request: Request) {
     await updateIngestion(ingestionId, { status: '4/4: Saving episode...' });
 
     // Final dedup guard: check if another worker already created this item
-    // while we were processing. This prevents duplicates from concurrent ingestions.
     const existingItems = await getFeedItems(feedId);
-    const existingItem = existingItems.find(item => item.source_url === url);
+    const existingItem = existingItems.find(item => item.source_url === finalUrl);
 
     if (existingItem) {
-      // Another worker already created this item — update it silently instead
-      console.warn(`Item for ${url} already exists (${existingItem.id}). Updating in-place instead of creating duplicate.`);
-      logActivity({ feedId, level: 'warn', category: 'ingestion', message: 'Episode updated in-place (dedup)', details: url });
+      console.warn(`Item for ${finalUrl} already exists (${existingItem.id}). Updating in-place instead of creating duplicate.`);
+      logActivity({ feedId, level: 'warn', category: 'ingestion', message: 'Episode updated in-place (dedup)', details: finalUrl });
       const oldMediaUrl = existingItem.media_url;
       await updateFeedItem(existingItem.id!, {
         title,
@@ -183,25 +313,24 @@ export async function POST(request: Request) {
         feed_id: feedId,
         title,
         description,
-        source_url: url,
+        source_url: finalUrl,
         media_url: mediaUrl,
         type: isVideo ? 'video' : 'audio',
         size_bytes: sizeBytes,
         duration_seconds: durationSeconds,
-        origin: origin || 'article',
+        origin: finalOrigin || 'article',
         created_at: published_at ? new Date(published_at) : new Date(),
       });
 
-      const contentType = origin === 'youtube' ? 'YouTube video' : origin === 'rss' ? 'Blog post' : 'Article';
-      logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType} ingested and podcast episode created`, details: url });
+      logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType_} ingested and podcast episode created`, details: finalUrl });
 
       const publicUrl = getProductionUrl();
       notifyNewEpisode({
         title,
         description,
-        sourceUrl: url,
+        sourceUrl: finalUrl,
         durationSeconds,
-        origin: origin || 'article',
+        origin: finalOrigin || 'article',
         coverImageUrl: feed?.cover_image_url,
         webhookUrl: feed?.chat_webhook_url,
         mediaUrl,
@@ -209,19 +338,18 @@ export async function POST(request: Request) {
         feedTitle: feed?.title || '',
         feedId,
         syndicationTitle: syndication_title,
-      }).catch(() => {}); // errors already logged inside notifyNewEpisode
+      }).catch(() => {});
     }
 
-    // Ingestion succeeded: record the URL as processed (permanent, survives item deletion)
-    // and delete the ephemeral ingestion record to keep the collection clean.
-    await addProcessedUrl(feedId, url);
+    // Ingestion succeeded: record URL as processed and clean up ingestion record
+    await addProcessedUrl(feedId, finalUrl);
     await deleteIngestion(ingestionId);
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     console.error(`Worker error for ingestion ${ingestionId}:`, error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    logActivity({ feedId, level: 'error', category: 'ingestion', message: `Ingestion failed: ${message}`, details: url });
+    logActivity({ feedId, level: 'error', category: 'ingestion', message: `Ingestion failed: ${message}`, details: finalUrl });
     
     if (activeWriteStream && !activeWriteStream.destroyed) {
       try {

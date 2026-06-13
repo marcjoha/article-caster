@@ -37,7 +37,7 @@ export interface FeedItem {
   size_bytes: number;
   duration_seconds: number;
   created_at: Date;
-  origin?: 'article' | 'rss' | 'youtube';
+  origin?: 'article' | 'rss' | 'youtube' | 'pdf';
 }
 
 export const createFeed = async (feed: Omit<Feed, 'id' | 'created_at'>) => {
@@ -161,6 +161,9 @@ export const deleteFeedItem = async (itemId: string) => {
     if (itemData.media_url) {
       await deleteFile(itemData.media_url);
     }
+    if (itemData.source_url) {
+      await deleteFile(itemData.source_url);
+    }
   }
 
   await db.collection('items').doc(itemId).delete();
@@ -172,7 +175,7 @@ export interface Ingestion {
   url: string;
   status: string;
   error?: string;
-  origin?: 'article' | 'rss' | 'youtube';
+  origin?: 'article' | 'rss' | 'youtube' | 'pdf';
   created_at?: FirebaseFirestore.Timestamp | Date;
 }
 
@@ -188,7 +191,7 @@ export const createIngestion = async (ingestion: Omit<Ingestion, 'id' | 'created
   return data;
 };
 
-export const updateIngestion = async (id: string, updates: Partial<Pick<Ingestion, 'status' | 'error'>>) => {
+export const updateIngestion = async (id: string, updates: Partial<Ingestion>) => {
   await db.collection('ingestions').doc(id).set(updates, { merge: true });
 };
 

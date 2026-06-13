@@ -3,7 +3,7 @@ import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
-  location: 'europe-west1'
+  location: 'global'
 });
 
 /**
@@ -44,7 +44,7 @@ Rules:
 - Write in the same language as the content`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         safetySettings: [
