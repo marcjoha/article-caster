@@ -42,7 +42,7 @@ async function main() {
   // Initialize Services
   const { db } = await import('../src/lib/firestore');
   const storage = new Storage({ projectId: PROJECT_ID });
-  const bucket = storage.bucket(BUCKET_NAME);
+  const bucket = storage.bucket(BUCKET_NAME!);
 
   // Stats trackers
   let totalErrors = 0;
@@ -73,12 +73,13 @@ async function main() {
       const metadata = file.metadata;
       filesMap.set(file.name, {
         size: parseInt(String(metadata.size), 10) || 0,
-        timeCreated: new Date(metadata.timeCreated),
+        timeCreated: new Date(metadata.timeCreated || ''),
         name: file.name,
       });
     });
-  } catch (e: any) {
-    reportError(`Failed to fetch files from GCS bucket: ${e.message}`);
+  } catch (e: unknown) {
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    reportError(`Failed to fetch files from GCS bucket: ${errorMsg}`);
     process.exit(1);
   }
   console.log('GCS files cached successfully.\n');
@@ -91,7 +92,7 @@ async function main() {
   const feedsSnapshot = await db.collection('feeds').get();
   console.log(`Retrieved ${feedsSnapshot.size} feeds.`);
 
-  const feedsMap = new Map<string, any>();
+  const feedsMap = new Map<string, FirebaseFirestore.DocumentData>();
   const unguessableSlugs = new Set<string>();
 
   feedsSnapshot.docs.forEach(doc => {
@@ -178,24 +179,23 @@ async function main() {
       reportError(`Episode ${doc.id} has invalid duration_seconds: ${data.duration_seconds}`);
     }
 
-    // Date integrity
     let episodeCreated: Date | null = null;
     if (!data.created_at) {
       reportError(`Episode ${doc.id} is missing created_at timestamp.`);
     } else {
-      episodeCreated = data.created_at.toDate ? data.created_at.toDate() : new Date(data.created_at);
-      if (isNaN(episodeCreated.getTime())) {
+      const parsedDate = data.created_at.toDate ? data.created_at.toDate() : new Date(data.created_at);
+      if (isNaN(parsedDate.getTime())) {
         reportError(`Episode ${doc.id} has invalid created_at timestamp.`);
-        episodeCreated = null;
       } else {
-        reportSuccess(`Episode created_at date is valid: ${episodeCreated.toISOString()}`);
+        episodeCreated = parsedDate;
+        reportSuccess(`Episode created_at date is valid: ${parsedDate.toISOString()}`);
         
         // Temporal ordering: episode cannot be older than the feed
         if (feed) {
           const feedCreated = feed.created_at.toDate ? feed.created_at.toDate() : new Date(feed.created_at);
           // Allow small buffer (1 minute) for edge cases or clock offsets
-          if (episodeCreated.getTime() < feedCreated.getTime() - 60000) {
-            reportError(`Episode "${data.title}" was created on ${episodeCreated.toISOString()} but its parent Feed "${feed.title}" was created later on ${feedCreated.toISOString()}!`);
+          if (parsedDate.getTime() < feedCreated.getTime() - 60000) {
+            reportError(`Episode "${data.title}" was created on ${parsedDate.toISOString()} but its parent Feed "${feed.title}" was created later on ${feedCreated.toISOString()}!`);
           }
         }
       }
@@ -286,7 +286,7 @@ async function main() {
       reportError(`Log ${doc.id} is missing required details field.`);
     } else {
       try {
-        const url = new URL(data.details);
+        new URL(data.details);
         // Verify GCS URLs in logs if they refer to our bucket
         const prefix = `https://storage.googleapis.com/${BUCKET_NAME}/`;
         if (data.details.startsWith(prefix)) {
@@ -296,7 +296,7 @@ async function main() {
             reportWarning(`Log ${doc.id} details point to a GCS file "${filePath}" that is missing.`);
           }
         }
-      } catch (e) {
+      } catch {
         reportError(`Log ${doc.id} details field contains an invalid URL: "${data.details}" (details field must strictly be a valid URL).`);
       }
     }

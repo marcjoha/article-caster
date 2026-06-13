@@ -145,10 +145,15 @@ export default function SubscribeClientPage({ feed, hostUrl }: SubscribeClientPa
         }
 
         @media (max-width: 480px) {
+          .subscribe-container {
+            padding: 1.5rem;
+          }
           .podcast-brand {
             flex-direction: column;
             text-align: center;
             gap: 1rem;
+            margin-bottom: 1.75rem;
+            padding-bottom: 1.25rem;
           }
           .podcast-cover {
             width: 110px;
@@ -156,6 +161,14 @@ export default function SubscribeClientPage({ feed, hostUrl }: SubscribeClientPa
           }
           .smart-links-grid {
             grid-template-columns: 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1.75rem;
+          }
+          .manual-section {
+            padding: 1rem;
+          }
+          .copy-input {
+            padding: 0.75rem;
           }
         }
 
@@ -248,6 +261,7 @@ export default function SubscribeClientPage({ feed, hostUrl }: SubscribeClientPa
 
         .copy-input {
           flex: 1;
+          min-width: 0;
           background: transparent;
           border: none;
           padding: 0.75rem 1rem;
@@ -259,6 +273,7 @@ export default function SubscribeClientPage({ feed, hostUrl }: SubscribeClientPa
         }
 
         .copy-btn {
+          flex-shrink: 0;
           background: #3b82f6;
           color: #ffffff;
           border: none;

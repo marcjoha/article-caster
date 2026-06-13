@@ -40,7 +40,7 @@ async function main() {
 
   const { db } = await import('../src/lib/firestore');
   const storage = new Storage({ projectId: PROJECT_ID });
-  const bucket = storage.bucket(BUCKET_NAME);
+  const bucket = storage.bucket(BUCKET_NAME!);
 
   // --- 1. Clean up Orphan Log Entry referencing non-existent Feed ---
   const orphanLogId = '8kTcY30XSnDgPKtZfUt2';
@@ -72,7 +72,7 @@ async function main() {
         new URL(detailsStr);
         // If it compiles as URL, let's verify it doesn't contain surrounding text
         isStrictUrl = !detailsStr.includes(' ') && !detailsStr.includes('\n');
-      } catch (e) {}
+      } catch {}
 
       if (!isStrictUrl) {
         // Extract URL from string using regex
