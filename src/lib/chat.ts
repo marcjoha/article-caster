@@ -101,14 +101,14 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
 
   if (episode.mediaUrl) {
     buttons.push({
-      text: isVideo ? 'Watch this episode' : 'Listen to this episode',
+      text: isVideo ? 'Watch' : 'Listen',
       icon: { materialIcon: { name: isVideo ? 'play_circle' : 'headphones' } },
       onClick: { openLink: { url: episode.mediaUrl } },
     });
   }
 
   buttons.push({
-    text: isVideo ? 'Watch original' : isPdf ? 'Read PDF' : 'Read original',
+    text: 'Source',
     icon: { materialIcon: { name: isVideo ? 'smart_display' : isPdf ? 'picture_as_pdf' : 'article' } },
     onClick: { openLink: { url: episode.sourceUrl } },
   });
@@ -127,7 +127,7 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
     }
 
     buttons.push({
-      text: 'Subscribe to the podcast',
+      text: 'Subscribe',
       icon: { materialIcon: { name: 'podcasts' } },
       onClick: { openLink: { url: subscribeUrl } },
     });

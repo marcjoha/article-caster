@@ -51,15 +51,21 @@ body {
 
 .input-field {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.45rem 0.75rem;
   margin-bottom: 1rem;
   border-radius: 6px;
   border: 1px solid #334155;
   background-color: #0f172a;
   color: white;
   box-sizing: border-box;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
   height: 2.75rem;
+}
+
+select.input-field {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
 }
 
 textarea.input-field {

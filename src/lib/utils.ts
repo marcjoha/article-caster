@@ -76,6 +76,20 @@ export function looksLikeYoutubeUrl(url: string): boolean {
 }
 
 /**
+ * Returns true if the URL looks like an X or Twitter status/article.
+ */
+export function looksLikeTwitterUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    const isTwitterHost = ['x.com', 'twitter.com', 'mobile.twitter.com', 'fxtwitter.com', 'fixupx.com'].includes(host);
+    return isTwitterHost && /\/status(?:es)?\/\d+/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Returns true if the URL looks like a regular article or YouTube video
  * rather than an RSS feed.
  */
@@ -135,6 +149,14 @@ export function getUrlDisplayString(
       }
       if (videoId) {
         return `${domain} / Video ID: ${videoId}`;
+      }
+    }
+
+    // For Twitter / X posts
+    if (looksLikeTwitterUrl(urlStr)) {
+      const match = url.pathname.match(/^\/([^/]+)\/status(?:es)?\/(\d+)/i);
+      if (match) {
+        return `${domain} / @${match[1]} (Post ${match[2]})`;
       }
     }
     

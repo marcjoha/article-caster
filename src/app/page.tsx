@@ -1,10 +1,11 @@
 import Image from 'next/image';
-import { getFeeds, getFeedItems, getSyndications } from '@/lib/firestore';
+import { getFeeds, getFeedItems, getQueuedFeedItems, getSyndications } from '@/lib/firestore';
 import FeedForm from '@/components/FeedForm';
 import { DeleteFeedButton, DeleteItemButton, ListenAudioButton, SubscribePageLink, WatchVideoButton } from '@/components/ClientButtons';
 import IngestionTabs from '@/components/IngestionTabs';
 import FeedSelector from '@/components/FeedSelector';
 import ProcessingList from '@/components/ProcessingList';
+import PublishingQueue from '@/components/PublishingQueue';
 import LogViewer from '@/components/LogViewer';
 
 import { formatDateTime, getGcsStorageCost } from '@/lib/utils';
@@ -20,6 +21,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     
   const activeFeedId = selectedFeed?.id;
   const items = activeFeedId ? await getFeedItems(activeFeedId) : [];
+  const queuedItems = activeFeedId ? await getQueuedFeedItems(activeFeedId) : [];
   const syndications = activeFeedId ? await getSyndications(activeFeedId) : [];
 
 
@@ -69,6 +71,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                           tts_voice: selectedFeed.tts_voice,
                           audio_prefix_message: selectedFeed.audio_prefix_message,
                           chat_webhook_url: selectedFeed.chat_webhook_url,
+                          rate_limit_enabled: selectedFeed.rate_limit_enabled,
+                          rate_limit_schedule: selectedFeed.rate_limit_schedule,
+                          rate_limit_days: selectedFeed.rate_limit_days,
+                          rate_limit_hour_utc: selectedFeed.rate_limit_hour_utc,
+                          rate_limit_episodes_per_window: selectedFeed.rate_limit_episodes_per_window,
                         }} 
                         buttonText="Edit" 
                         buttonTitle="Edit Podcast Settings"
@@ -85,6 +92,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               </div>
 
               <ProcessingList feedId={selectedFeed.id!} episodes={items} />
+
+              <PublishingQueue feed={selectedFeed} queuedItems={queuedItems} />
 
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
                 <h3 style={{margin: 0}}>Podcast Episodes</h3>
@@ -177,18 +186,33 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                             </div>
                             <div className="article-meta">
                               Added {formatDateTime(item.created_at)}
-                              {item.source_url && (
+                              {item.syndication_title && (
                                 <>
                                   <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>•</span>
-                                  {(() => {
-                                    try {
-                                      return new URL(item.source_url).hostname.replace(/^www\./, '');
-                                    } catch {
-                                      return item.source_url;
-                                    }
-                                  })()}
+                                  <span>{item.syndication_title}</span>
                                 </>
                               )}
+                              {item.source_url && (() => {
+                                try {
+                                  const domain = new URL(item.source_url).hostname.replace(/^www\./, '');
+                                  if (item.syndication_title && item.syndication_title.trim().toLowerCase() === domain.toLowerCase()) {
+                                    return null;
+                                  }
+                                  return (
+                                    <>
+                                      <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>•</span>
+                                      {domain}
+                                    </>
+                                  );
+                                } catch {
+                                  return (
+                                    <>
+                                      <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>•</span>
+                                      {item.source_url}
+                                    </>
+                                  );
+                                }
+                              })()}
                             </div>
                           </td>
                           <td className="article-actions-cell">

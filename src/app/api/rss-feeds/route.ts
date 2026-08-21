@@ -78,7 +78,7 @@ export async function POST(request: Request) {
             url: itemUrl,
             origin: 'rss',
             published_at: publishedAtStr,
-            syndication_title: feed.title,
+            syndication_title: feed.title || syndication.title,
           });
         }
 

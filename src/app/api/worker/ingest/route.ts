@@ -7,7 +7,7 @@ import { injectVideoIntro } from '@/lib/ingestion/videoIntro';
 import { summarizeContent } from '@/lib/ingestion/summarize';
 import { applyLoudnessNormalization } from '@/lib/audio';
 import { streamUpload, getFileMetadata, deleteFile, uploadFile } from '@/lib/storage';
-import { createFeedItem, updateFeedItem, getFeedItems, updateIngestion, addProcessedUrl, deleteIngestion, db, Feed } from '@/lib/firestore';
+import { createFeedItem, updateFeedItem, updateIngestion, addProcessedUrl, deleteIngestion, db, Feed } from '@/lib/firestore';
 import { notifyNewEpisode } from '@/lib/chat';
 import { logActivity } from '@/lib/logger';
 import fs from 'fs';
@@ -244,8 +244,11 @@ export async function POST(request: Request) {
 
     await updateIngestion(ingestionId, { status: '4/4: Saving episode...' });
 
-    // Final dedup guard: check if another worker already created this item
-    const existingItems = await getFeedItems(feedId);
+    const isRateLimited = !!feed?.rate_limit_enabled;
+
+    // Final dedup guard: check if another worker already created this item (published or queued)
+    const { getAllFeedItems } = await import('@/lib/firestore');
+    const existingItems = await getAllFeedItems(feedId);
     const existingItem = existingItems.find(item => item.source_url === finalUrl);
 
     if (existingItem) {
@@ -258,41 +261,66 @@ export async function POST(request: Request) {
         media_url: mediaUrl,
         size_bytes: sizeBytes,
         duration_seconds: durationSeconds,
+        ...(syndication_title ? { syndication_title } : {}),
       });
       if (oldMediaUrl && oldMediaUrl !== mediaUrl) {
         deleteFile(oldMediaUrl).catch(e => console.error("Failed to delete old media file:", e));
       }
     } else {
-      await createFeedItem({
-        feed_id: feedId,
-        title,
-        description,
-        source_url: finalUrl,
-        media_url: mediaUrl,
-        type: isVideo ? 'video' : 'audio',
-        size_bytes: sizeBytes,
-        duration_seconds: durationSeconds,
-        origin: finalOrigin || 'article',
-        created_at: published_at ? new Date(published_at) : new Date(),
-      });
+      const now = new Date();
+      if (isRateLimited) {
+        await createFeedItem({
+          feed_id: feedId,
+          title,
+          description,
+          source_url: finalUrl,
+          media_url: mediaUrl,
+          type: isVideo ? 'video' : 'audio',
+          size_bytes: sizeBytes,
+          duration_seconds: durationSeconds,
+          origin: finalOrigin || 'article',
+          status: 'queued',
+          queued_at: now,
+          created_at: published_at ? new Date(published_at) : now,
+          ...(syndication_title ? { syndication_title } : {}),
+        });
 
-      logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType_} ingested and podcast episode created`, details: finalUrl });
+        logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType_} ingested and added to publishing queue`, details: finalUrl });
+      } else {
+        await createFeedItem({
+          feed_id: feedId,
+          title,
+          description,
+          source_url: finalUrl,
+          media_url: mediaUrl,
+          type: isVideo ? 'video' : 'audio',
+          size_bytes: sizeBytes,
+          duration_seconds: durationSeconds,
+          origin: finalOrigin || 'article',
+          status: 'published',
+          published_at: published_at ? new Date(published_at) : now,
+          created_at: published_at ? new Date(published_at) : now,
+          ...(syndication_title ? { syndication_title } : {}),
+        });
 
-      const publicUrl = getProductionUrl();
-      notifyNewEpisode({
-        title,
-        description,
-        sourceUrl: finalUrl,
-        durationSeconds,
-        origin: finalOrigin || 'article',
-        coverImageUrl: feed?.cover_image_url,
-        webhookUrl: feed?.chat_webhook_url,
-        mediaUrl,
-        feedUrl: publicUrl ? `${publicUrl}/feed/${feed?.unguessable_slug}.xml` : '',
-        feedTitle: feed?.title || '',
-        feedId,
-        syndicationTitle: syndication_title,
-      }).catch(() => {});
+        logActivity({ feedId, level: 'info', category: 'ingestion', message: `${contentType_} ingested and podcast episode created`, details: finalUrl });
+
+        const publicUrl = getProductionUrl();
+        notifyNewEpisode({
+          title,
+          description,
+          sourceUrl: finalUrl,
+          durationSeconds,
+          origin: finalOrigin || 'article',
+          coverImageUrl: feed?.cover_image_url,
+          webhookUrl: feed?.chat_webhook_url,
+          mediaUrl,
+          feedUrl: publicUrl ? `${publicUrl}/feed/${feed?.unguessable_slug}.xml` : '',
+          feedTitle: feed?.title || '',
+          feedId,
+          syndicationTitle: syndication_title,
+        }).catch(() => {});
+      }
     }
 
     // Ingestion succeeded: record URL as processed and clean up ingestion record
