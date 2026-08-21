@@ -2,6 +2,8 @@ import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import dns from 'node:dns';
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
+import { looksLikeTwitterUrl } from '@/lib/utils';
+import { extractTwitterArticle } from '@/lib/ingestion/x';
 
 dns.setDefaultResultOrder('ipv4first');
 
@@ -82,40 +84,59 @@ ${sample}`;
 }
 
 export const extractArticleContent = async (url: string): Promise<{ title: string; textContent: string; textBlocks: string[]; language: string }> => {
-  // Stage 1: Try direct fetch + Readability
   let article: { title: string; content: string; textContent: string; lang?: string } | null = null;
   let language = 'en-US';
 
-  try {
-    const directResponse = await fetch(url, { 
-      signal: AbortSignal.timeout(15000),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5'
-      }
-    });
-
-    if (directResponse.ok) {
-      const html = await directResponse.text();
-      const doc = new JSDOM(html, { url });
-      language = doc.window.document.documentElement.lang || 'en-US';
-      const reader = new Readability(doc.window.document);
-      const parsed = reader.parse();
-      if (parsed && parsed.textContent && parsed.textContent.trim().length >= MIN_ARTICLE_LENGTH) {
-        article = {
-          title: parsed.title || 'Unknown Title',
-          content: parsed.content || '',
-          textContent: parsed.textContent,
-        };
-      } else {
-        console.warn(`Readability returned insufficient content for ${url}, falling back to Jina`);
-      }
-    } else {
-      console.warn(`Primary fetch failed (${directResponse.status}) for ${url}, falling back to Jina`);
+  // Stage 0: Dedicated X / Twitter extractor
+  if (looksLikeTwitterUrl(url)) {
+    try {
+      const twitterResult = await extractTwitterArticle(url);
+      article = {
+        title: twitterResult.title,
+        content: twitterResult.content,
+        textContent: twitterResult.textContent,
+        lang: twitterResult.language,
+      };
+      language = twitterResult.language;
+    } catch (twitterErr) {
+      console.warn(`X article extraction failed for ${url}:`, twitterErr);
+      throw twitterErr;
     }
-  } catch (error) {
-    console.warn(`Primary fetch threw for ${url}, falling back to Jina:`, error);
+  }
+
+  // Stage 1: Try direct fetch + Readability
+  if (!article) {
+    try {
+      const directResponse = await fetch(url, { 
+        signal: AbortSignal.timeout(15000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5'
+        }
+      });
+
+      if (directResponse.ok) {
+        const html = await directResponse.text();
+        const doc = new JSDOM(html, { url });
+        language = doc.window.document.documentElement.lang || 'en-US';
+        const reader = new Readability(doc.window.document);
+        const parsed = reader.parse();
+        if (parsed && parsed.textContent && parsed.textContent.trim().length >= MIN_ARTICLE_LENGTH) {
+          article = {
+            title: parsed.title || 'Unknown Title',
+            content: parsed.content || '',
+            textContent: parsed.textContent,
+          };
+        } else {
+          console.warn(`Readability returned insufficient content for ${url}, falling back to Jina`);
+        }
+      } else {
+        console.warn(`Primary fetch failed (${directResponse.status}) for ${url}, falling back to Jina`);
+      }
+    } catch (error) {
+      console.warn(`Primary fetch threw for ${url}, falling back to Jina:`, error);
+    }
   }
 
   // Stage 2: Jina Reader fallback (markdown mode — handles JS-rendered & Cloudflare-protected sites)
