@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { Storage } from '@google-cloud/storage';
+import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // 1. Load environment variables
 try {
@@ -38,7 +40,13 @@ async function main() {
   console.log(`GCS Bucket Name: ${BUCKET_NAME}`);
   console.log('==================================================\n');
 
-  const { db } = await import('../src/lib/firestore');
+  if (!getApps().length) {
+    initializeApp({
+      credential: applicationDefault(),
+      projectId: PROJECT_ID,
+    });
+  }
+  const db = getFirestore();
   const storage = new Storage({ projectId: PROJECT_ID });
   const bucket = storage.bucket(BUCKET_NAME!);
 
@@ -106,6 +114,23 @@ async function main() {
   } else {
     console.log(`Orphan GCS file "${orphanGcsPath}" does not exist in the bucket (already cleaned).`);
   }
+
+  // --- 4. Clean up Orphan Ingestion Records without valid Feed ID ---
+  console.log('\nScanning ingestions for orphaned records...');
+  const feedsSnapshot = await db.collection('feeds').get();
+  const validFeedIds = new Set(feedsSnapshot.docs.map(d => d.id));
+  const ingestionsSnapshot = await db.collection('ingestions').get();
+  let deletedIngestionsCount = 0;
+
+  for (const doc of ingestionsSnapshot.docs) {
+    const data = doc.data();
+    if (!data.feed_id || !validFeedIds.has(data.feed_id)) {
+      console.log(`Deleting orphan/invalid ingestion "${doc.id}" (feed_id: "${data.feed_id}")...`);
+      await doc.ref.delete();
+      deletedIngestionsCount++;
+    }
+  }
+  console.log(`✅ Cleaned up ${deletedIngestionsCount} orphan ingestion records.`);
 
   console.log('\n==================================================');
   console.log('🎉 REPAIR AND CLEANUP OPERATION COMPLETED 🎉');

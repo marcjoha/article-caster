@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { Storage } from '@google-cloud/storage';
+import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // 1. Load environment variables first
 try {
@@ -40,7 +42,13 @@ async function main() {
   console.log('==================================================\n');
 
   // Initialize Services
-  const { db } = await import('../src/lib/firestore');
+  if (!getApps().length) {
+    initializeApp({
+      credential: applicationDefault(),
+      projectId: PROJECT_ID,
+    });
+  }
+  const db = getFirestore();
   const storage = new Storage({ projectId: PROJECT_ID });
   const bucket = storage.bucket(BUCKET_NAME!);
 
@@ -202,8 +210,13 @@ async function main() {
     }
 
     // Media file physical validation & date integrity cross-check
+    const prefix = `https://storage.googleapis.com/${BUCKET_NAME}/`;
+    if (data.source_url && data.source_url.startsWith(prefix)) {
+      const sourceGcsPath = data.source_url.substring(prefix.length);
+      referencedGcsPaths.add(sourceGcsPath);
+    }
+
     if (data.media_url) {
-      const prefix = `https://storage.googleapis.com/${BUCKET_NAME}/`;
       if (data.media_url.startsWith(prefix)) {
         const filePath = data.media_url.substring(prefix.length);
         referencedGcsPaths.add(filePath);
@@ -348,6 +361,13 @@ async function main() {
     const feed = feedsMap.get(data.feed_id);
     if (!feed) {
       reportError(`Ingestion ${doc.id} references non-existent Feed ID: "${data.feed_id}".`);
+    }
+
+    if (data.url && typeof data.url === 'string') {
+      const prefix = `https://storage.googleapis.com/${BUCKET_NAME}/`;
+      if (data.url.startsWith(prefix)) {
+        referencedGcsPaths.add(data.url.substring(prefix.length));
+      }
     }
 
     // Date validation
