@@ -16,6 +16,20 @@ export async function POST(request: Request) {
     const chat_webhook_url = formData.get('chat_webhook_url') as string | undefined;
     const coverImageFile = formData.get('cover_image') as File | null;
     
+    const rate_limit_enabled = formData.get('rate_limit_enabled') === 'true';
+    const rate_limit_schedule = (formData.get('rate_limit_schedule') as 'weekdays' | 'daily' | 'custom') || 'weekdays';
+    const rawRateLimitDays = formData.get('rate_limit_days') as string | null;
+    let rate_limit_days: number[] = [1, 2, 3, 4, 5];
+    if (rawRateLimitDays) {
+      try {
+        rate_limit_days = JSON.parse(rawRateLimitDays);
+      } catch {}
+    }
+    const rawHour = formData.get('rate_limit_hour_utc') as string | null;
+    const rate_limit_hour_utc = rawHour !== null ? parseInt(rawHour, 10) : 8;
+    const rawEpisodes = formData.get('rate_limit_episodes_per_window') as string | null;
+    const rate_limit_episodes_per_window = rawEpisodes !== null ? parseInt(rawEpisodes, 10) : 1;
+
     let cover_image_url = formData.get('cover_image_url') as string | undefined;
     
     if (coverImageFile) {
@@ -36,6 +50,11 @@ export async function POST(request: Request) {
       ...(tts_voice && { tts_voice }),
       ...(audio_prefix_message && { audio_prefix_message }),
       ...(chat_webhook_url && { chat_webhook_url }),
+      rate_limit_enabled,
+      rate_limit_schedule,
+      rate_limit_days,
+      rate_limit_hour_utc,
+      rate_limit_episodes_per_window,
     });
 
     const host = request.headers.get('host') || 'localhost:3000';

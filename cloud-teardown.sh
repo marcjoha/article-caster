@@ -41,9 +41,11 @@ for QUEUE in $QUEUES; do
   fi
 done
 
-echo -e "${BLUE}ℹ Deleting Cloud Scheduler job...${NC}"
+echo -e "${BLUE}ℹ Deleting Cloud Scheduler jobs...${NC}"
 JOB_NAME="article-caster-syndication-cron"
-gcloud scheduler jobs delete "$JOB_NAME" --location="$TASKS_REGION" --project="$PROJECT_ID" --quiet || echo -e "${YELLOW}⚠ Job already deleted or doesn't exist.${NC}"
+gcloud scheduler jobs delete "$JOB_NAME" --location="$TASKS_REGION" --project="$PROJECT_ID" --quiet || echo -e "${YELLOW}⚠ Job $JOB_NAME already deleted or doesn't exist.${NC}"
+PUBLISH_JOB_NAME="article-caster-publish-cron"
+gcloud scheduler jobs delete "$PUBLISH_JOB_NAME" --location="$TASKS_REGION" --project="$PROJECT_ID" --quiet || echo -e "${YELLOW}⚠ Job $PUBLISH_JOB_NAME already deleted or doesn't exist.${NC}"
 
 echo -e "${BLUE}ℹ Deleting Cloud Run source archives from GCS...${NC}"
 gcloud storage rm --recursive "gs://run-sources-$PROJECT_ID-$REGION/services/$SERVICE_NAME/" --project="$PROJECT_ID" --quiet || echo -e "${YELLOW}⚠ Source archives already deleted or doesn't exist.${NC}"

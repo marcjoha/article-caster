@@ -128,7 +128,7 @@ if [ -z "$PUBLIC_URL" ]; then
   echo -e "${GREEN}✔ Service updated with PUBLIC_URL=$NEW_PUBLIC_URL${NC}"
 fi
 
-echo -e "${BLUE}ℹ Ensuring Cloud Scheduler job exists...${NC}"
+echo -e "${BLUE}ℹ Ensuring Cloud Scheduler jobs exist...${NC}"
 JOB_NAME="article-caster-syndication-cron"
 TARGET_URI="${NEW_PUBLIC_URL:-$PUBLIC_URL}/api/worker/rss-cron"
 
@@ -148,6 +148,27 @@ else
     --schedule="0 2 * * *" \
     --uri="$TARGET_URI" \
     --http-method=GET
+fi
+
+PUBLISH_JOB_NAME="article-caster-publish-cron"
+PUBLISH_TARGET_URI="${NEW_PUBLIC_URL:-$PUBLIC_URL}/api/worker/publish-cron"
+
+if ! gcloud scheduler jobs describe "$PUBLISH_JOB_NAME" --location="$TASKS_REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+  echo -e "${GREEN}✔ Creating Cloud Scheduler job $PUBLISH_JOB_NAME...${NC}"
+  gcloud scheduler jobs create http "$PUBLISH_JOB_NAME" \
+    --project="$PROJECT_ID" \
+    --location="$TASKS_REGION" \
+    --schedule="0 * * * *" \
+    --uri="$PUBLISH_TARGET_URI" \
+    --http-method=POST
+else
+  echo -e "${GREEN}✔ Updating Cloud Scheduler job $PUBLISH_JOB_NAME...${NC}"
+  gcloud scheduler jobs update http "$PUBLISH_JOB_NAME" \
+    --project="$PROJECT_ID" \
+    --location="$TASKS_REGION" \
+    --schedule="0 * * * *" \
+    --uri="$PUBLISH_TARGET_URI" \
+    --http-method=POST
 fi
 
 echo -e "${GREEN}✔ Deployment complete!${NC}"

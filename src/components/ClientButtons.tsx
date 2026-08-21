@@ -349,3 +349,49 @@ export function ListenAudioButton({ audioUrl, title, coverImageUrl }: { audioUrl
     </>
   );
 }
+
+export function PublishItemButton({ itemId }: { itemId: string }) {
+  const router = useRouter();
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    try {
+      const res = await fetch(`/api/items/${itemId}/publish`, { method: 'POST' });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to publish episode');
+      }
+    } catch (e) {
+      console.error('Publish error:', e);
+      alert('Network error while publishing episode');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handlePublish}
+      disabled={isPublishing}
+      className="btn"
+      style={{
+        padding: '0 0.6rem',
+        height: '2rem',
+        fontSize: '0.75rem',
+        gap: '0.35rem',
+        background: 'var(--accent-color)',
+        color: '#fff',
+      }}
+      title="Publish this episode immediately"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '0.9rem', height: '0.9rem' }}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+      </svg>
+      {isPublishing ? 'Publishing...' : 'Publish Now'}
+    </button>
+  );
+}
+

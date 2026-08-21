@@ -14,6 +14,11 @@ interface FeedFormProps {
     tts_voice?: string;
     audio_prefix_message?: string;
     chat_webhook_url?: string;
+    rate_limit_enabled?: boolean;
+    rate_limit_schedule?: 'weekdays' | 'daily' | 'custom';
+    rate_limit_days?: number[];
+    rate_limit_hour_utc?: number;
+    rate_limit_episodes_per_window?: number;
   };
   buttonText?: string;
   buttonStyle?: React.CSSProperties;
@@ -35,6 +40,11 @@ export default function FeedForm({
   const [ttsVoice, setTtsVoice] = useState((!initialData?.tts_voice || initialData.tts_voice === 'auto') ? 'Puck' : initialData.tts_voice);
   const [audioPrefixMessage, setAudioPrefixMessage] = useState(initialData?.audio_prefix_message || '');
   const [chatWebhookUrl, setChatWebhookUrl] = useState(initialData?.chat_webhook_url || '');
+  const [rateLimitEnabled, setRateLimitEnabled] = useState(initialData?.rate_limit_enabled ?? false);
+  const [rateLimitSchedule, setRateLimitSchedule] = useState<'weekdays' | 'daily' | 'custom'>(initialData?.rate_limit_schedule || 'weekdays');
+  const [rateLimitDays, setRateLimitDays] = useState<number[]>(initialData?.rate_limit_days || [1, 2, 3, 4, 5]);
+  const [rateLimitHourUtc, setRateLimitHourUtc] = useState<number>(initialData?.rate_limit_hour_utc ?? 8);
+  const [rateLimitEpisodesPerWindow, setRateLimitEpisodesPerWindow] = useState<number>(initialData?.rate_limit_episodes_per_window ?? 1);
   const [webhookTestStatus, setWebhookTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [webhookTestError, setWebhookTestError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -146,6 +156,12 @@ export default function FeedForm({
     formData.append('tts_voice', ttsVoice);
     formData.append('audio_prefix_message', audioPrefixMessage);
     formData.append('chat_webhook_url', chatWebhookUrl);
+    formData.append('rate_limit_enabled', String(rateLimitEnabled));
+    formData.append('rate_limit_schedule', rateLimitSchedule);
+    formData.append('rate_limit_days', JSON.stringify(rateLimitDays));
+    formData.append('rate_limit_hour_utc', String(rateLimitHourUtc));
+    formData.append('rate_limit_episodes_per_window', String(rateLimitEpisodesPerWindow));
+
     if (coverImageFile) {
       formData.append('cover_image', coverImageFile);
     } else if (existingCoverUrl) {
@@ -175,6 +191,16 @@ export default function FeedForm({
     setLoading(false);
   };
 
+  const toggleDay = (dayIndex: number) => {
+    if (rateLimitDays.includes(dayIndex)) {
+      if (rateLimitDays.length > 1) {
+        setRateLimitDays(rateLimitDays.filter(d => d !== dayIndex));
+      }
+    } else {
+      setRateLimitDays([...rateLimitDays, dayIndex].sort((a, b) => a - b));
+    }
+  };
+
   return (
     <>
       <button 
@@ -193,7 +219,7 @@ export default function FeedForm({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
           padding: '1rem'
         }}>
-          <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '500px', position: 'relative', maxHeight: '90vh', overflowY: 'auto', textAlign: 'left'}}>
+          <div className="card" style={{padding: '2rem', width: '100%', maxWidth: '520px', position: 'relative', maxHeight: '90vh', overflowY: 'auto', textAlign: 'left'}}>
             <button 
               onClick={handleClose}
               style={{
@@ -261,64 +287,160 @@ export default function FeedForm({
                     type="button" 
                     className="btn" 
                     style={{ 
-                      background: isPlaying ? 'var(--bg-secondary)' : 'var(--accent-color)', 
-                      color: isPlaying ? 'var(--text-primary)' : '#fff', 
-                      border: '1px solid ' + (isPlaying ? 'var(--border-color)' : 'var(--accent-color)'),
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      width: '90px',
-                      justifyContent: 'center',
-                      padding: '0.4rem 0.8rem',
-                      fontSize: '0.875rem',
-                      boxSizing: 'border-box',
-                      whiteSpace: 'nowrap'
-                    }}
-                    onClick={handlePreview}
-                    disabled={previewLoading && !isPlaying}
-                  >
-                    {previewLoading ? 'Loading...' : isPlaying ? '⏹ Stop' : '▶ Play'}
-                  </button>
-                </div>
+                    background: isPlaying ? 'var(--bg-secondary)' : 'var(--accent-color)', 
+                    color: isPlaying ? 'var(--text-primary)' : '#fff', 
+                    border: '1px solid ' + (isPlaying ? 'var(--border-color)' : 'var(--accent-color)'),
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    width: '90px',
+                    justifyContent: 'center',
+                    padding: '0.4rem 0.8rem',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onClick={handlePreview}
+                  disabled={previewLoading && !isPlaying}
+                >
+                  {previewLoading ? 'Loading...' : isPlaying ? '⏹ Stop' : '▶ Play'}
+                </button>
               </div>
-              <div className="form-group">
-                <label>Google Chat Webhook URL (Optional)</label>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input type="url" className="input-field" style={{ flex: 1, marginBottom: 0 }} value={chatWebhookUrl} onChange={e => { setChatWebhookUrl(e.target.value); setWebhookTestStatus('idle'); }} placeholder="https://chat.googleapis.com/v1/spaces/..." />
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{
-                      background: webhookTestStatus === 'success' ? '#22c55e' : webhookTestStatus === 'error' ? '#ef4444' : 'var(--accent-color)',
-                      color: '#fff',
-                      border: '1px solid ' + (webhookTestStatus === 'success' ? '#22c55e' : webhookTestStatus === 'error' ? '#ef4444' : 'var(--accent-color)'),
-                      padding: '0.4rem 0.8rem',
-                      fontSize: '0.875rem',
-                      whiteSpace: 'nowrap',
-                      width: '90px',
-                      textAlign: 'center',
-                    }}
-                    onClick={handleTestWebhook}
-                    disabled={!chatWebhookUrl || webhookTestStatus === 'testing'}
-                  >
-                    {webhookTestStatus === 'testing' ? 'Testing...' : webhookTestStatus === 'success' ? '✓ Sent' : webhookTestStatus === 'error' ? '✗ Failed' : '💬 Test'}
-                  </button>
-                </div>
-                {webhookTestStatus === 'error' && webhookTestError && (
-                  <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#ef4444' }}>{webhookTestError}</div>
-                )}
-                {webhookTestStatus === 'success' && (
-                  <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#22c55e' }}>Test card sent — check your Google Chat space.</div>
-                )}
+            </div>
+            <div className="form-group">
+              <label>Google Chat Webhook URL (Optional)</label>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input type="url" className="input-field" style={{ flex: 1, marginBottom: 0 }} value={chatWebhookUrl} onChange={e => { setChatWebhookUrl(e.target.value); setWebhookTestStatus('idle'); }} placeholder="https://chat.googleapis.com/v1/spaces/..." />
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    background: webhookTestStatus === 'success' ? '#22c55e' : webhookTestStatus === 'error' ? '#ef4444' : 'var(--accent-color)',
+                    color: '#fff',
+                    border: '1px solid ' + (webhookTestStatus === 'success' ? '#22c55e' : webhookTestStatus === 'error' ? '#ef4444' : 'var(--accent-color)'),
+                    padding: '0.4rem 0.8rem',
+                    fontSize: '0.875rem',
+                    whiteSpace: 'nowrap',
+                    width: '90px',
+                    textAlign: 'center',
+                  }}
+                  onClick={handleTestWebhook}
+                  disabled={!chatWebhookUrl || webhookTestStatus === 'testing'}
+                >
+                  {webhookTestStatus === 'testing' ? 'Testing...' : webhookTestStatus === 'success' ? '✓ Sent' : webhookTestStatus === 'error' ? '✗ Failed' : '💬 Test'}
+                </button>
               </div>
-              <button type="submit" className="btn" disabled={loading} style={{width: '100%'}}>
-                {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Podcast')}
-              </button>
+              {webhookTestStatus === 'error' && webhookTestError && (
+                <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#ef4444' }}>{webhookTestError}</div>
+              )}
+              {webhookTestStatus === 'success' && (
+                <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#22c55e' }}>Test card sent — check your Google Chat space.</div>
+              )}
+            </div>
 
-            </form>
-          </div>
+            {/* --- Episode Publishing Schedule / Rate Limiter --- */}
+            <div className="form-group">
+              <label>Publishing Schedule (Optional)</label>
+              <select
+                className="input-field"
+                value={rateLimitEnabled ? rateLimitSchedule : 'disabled'}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === 'disabled') {
+                    setRateLimitEnabled(false);
+                  } else {
+                    setRateLimitEnabled(true);
+                    setRateLimitSchedule(val as 'weekdays' | 'daily' | 'custom');
+                    if (val === 'weekdays') setRateLimitDays([1, 2, 3, 4, 5]);
+                    if (val === 'daily') setRateLimitDays([0, 1, 2, 3, 4, 5, 6]);
+                  }
+                }}
+                style={{ marginBottom: rateLimitEnabled ? '0.75rem' : '1.5rem' }}
+              >
+                <option value="disabled">No rate limiting (Publish immediately)</option>
+                <option value="weekdays">Weekdays (Mon–Fri)</option>
+                <option value="daily">Everyday (Mon–Sun)</option>
+                <option value="custom">Custom Schedule</option>
+              </select>
+
+              {rateLimitEnabled && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                  {rateLimitSchedule === 'custom' && (
+                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      {[
+                        { label: 'Mon', day: 1 },
+                        { label: 'Tue', day: 2 },
+                        { label: 'Wed', day: 3 },
+                        { label: 'Thu', day: 4 },
+                        { label: 'Fri', day: 5 },
+                        { label: 'Sat', day: 6 },
+                        { label: 'Sun', day: 0 },
+                      ].map(({ label, day }) => (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => toggleDay(day)}
+                          className="btn"
+                          style={{
+                            height: '1.75rem',
+                            padding: '0 0.5rem',
+                            fontSize: '0.75rem',
+                            backgroundColor: rateLimitDays.includes(day) ? 'var(--accent-color)' : '#1e293b',
+                            color: rateLimitDays.includes(day) ? '#fff' : 'var(--text-secondary)',
+                            border: '1px solid ' + (rateLimitDays.includes(day) ? 'var(--accent-color)' : '#334155'),
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.85rem', marginBottom: '0.35rem' }}>Release Time</label>
+                      <select
+                        className="input-field"
+                        value={rateLimitHourUtc}
+                        onChange={e => setRateLimitHourUtc(parseInt(e.target.value, 10))}
+                        style={{ marginBottom: 0 }}
+                      >
+                        {Array.from({ length: 24 }).map((_, i) => {
+                          const hourStr = i.toString().padStart(2, '0') + ':00 UTC';
+                          return <option key={i} value={i}>{hourStr}</option>;
+                        })}
+                      </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.85rem', marginBottom: '0.35rem' }}>Max / Day</label>
+                      <input
+                        type="number"
+                        className="input-field"
+                        min={1}
+                        max={20}
+                        value={rateLimitEpisodesPerWindow}
+                        onChange={e => setRateLimitEpisodesPerWindow(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                        style={{ marginBottom: 0 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    Incoming episodes are processed immediately and held in the publishing queue until the scheduled release time.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button type="submit" className="btn" disabled={loading} style={{width: '100%', height: '2.5rem'}}>
+              {loading ? 'Saving...' : (initialData ? 'Save Changes' : 'Create Podcast')}
+            </button>
+
+          </form>
         </div>
-      )}
+      </div>
+    )}
 
       {errorModalMessage && (
         <ConfirmDialog

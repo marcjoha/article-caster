@@ -24,6 +24,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const chat_webhook_url = formData.get('chat_webhook_url') as string | undefined;
     const coverImageFile = formData.get('cover_image') as File | null;
     
+    const hasRateLimitField = formData.has('rate_limit_enabled');
+    const rate_limit_enabled = formData.get('rate_limit_enabled') === 'true';
+    const rate_limit_schedule = formData.get('rate_limit_schedule') as 'weekdays' | 'daily' | 'custom' | null;
+    const rawRateLimitDays = formData.get('rate_limit_days') as string | null;
+    const rawHour = formData.get('rate_limit_hour_utc') as string | null;
+    const rawEpisodes = formData.get('rate_limit_episodes_per_window') as string | null;
+
     let cover_image_url = formData.get('cover_image_url') as string | undefined;
     
     if (coverImageFile) {
@@ -49,7 +56,25 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (audio_prefix_message !== null) updates.audio_prefix_message = audio_prefix_message;
     if (chat_webhook_url !== null) updates.chat_webhook_url = chat_webhook_url;
 
+    if (hasRateLimitField) {
+      updates.rate_limit_enabled = rate_limit_enabled;
+      if (rate_limit_schedule) updates.rate_limit_schedule = rate_limit_schedule;
+      if (rawRateLimitDays) {
+        try {
+          updates.rate_limit_days = JSON.parse(rawRateLimitDays);
+        } catch {}
+      }
+      if (rawHour !== null) updates.rate_limit_hour_utc = parseInt(rawHour, 10);
+      if (rawEpisodes !== null) updates.rate_limit_episodes_per_window = parseInt(rawEpisodes, 10);
+    }
+
     await updateFeed(id, updates);
+
+    // If rate limiting was turned OFF, immediately release all remaining queued items
+    if (feedData?.rate_limit_enabled && !rate_limit_enabled) {
+      const { publishAllQueuedItems } = await import('@/lib/firestore');
+      await publishAllQueuedItems(id);
+    }
     
     const host = request.headers.get('host') || 'localhost:3000';
     const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';

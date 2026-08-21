@@ -23,6 +23,12 @@ export interface Feed {
   audio_prefix_message?: string;
   chat_webhook_url?: string;
   processed_urls?: string[];
+  rate_limit_enabled?: boolean;
+  rate_limit_schedule?: 'weekdays' | 'daily' | 'custom';
+  rate_limit_days?: number[];
+  rate_limit_hour_utc?: number;
+  rate_limit_episodes_per_window?: number;
+  last_rate_limit_published_date?: string;
   created_at: Date;
 }
 
@@ -38,6 +44,10 @@ export interface FeedItem {
   duration_seconds: number;
   created_at: Date;
   origin?: 'article' | 'rss' | 'youtube' | 'pdf';
+  status?: 'published' | 'queued';
+  published_at?: Date;
+  queued_at?: Date;
+  syndication_title?: string;
 }
 
 export const createFeed = async (feed: Omit<Feed, 'id' | 'created_at'>) => {
@@ -114,6 +124,13 @@ export const getFeeds = async (): Promise<Feed[]> => {
   });
 };
 
+export const getFeedById = async (feedId: string): Promise<Feed | null> => {
+  const doc = await db.collection('feeds').doc(feedId).get();
+  if (!doc.exists) return null;
+  const data = doc.data()!;
+  return { ...data, id: doc.id, created_at: data.created_at.toDate() } as Feed;
+};
+
 export const getFeedBySlug = async (slug: string): Promise<Feed | null> => {
   const snapshot = await db.collection('feeds').where('unguessable_slug', '==', slug).limit(1).get();
   if (snapshot.empty) return null;
@@ -121,25 +138,84 @@ export const getFeedBySlug = async (slug: string): Promise<Feed | null> => {
   return { ...data, created_at: data.created_at.toDate() } as Feed;
 };
 
-export const createFeedItem = async (item: Omit<FeedItem, 'id' | 'created_at'> & { created_at?: Date }) => {
+export const createFeedItem = async (item: Omit<FeedItem, 'id' | 'created_at'> & { created_at?: Date; published_at?: Date; queued_at?: Date }) => {
   const docRef = db.collection('items').doc();
   const data: FeedItem = {
     ...item,
     id: docRef.id,
     created_at: item.created_at || new Date(),
+    status: item.status || 'published',
   };
   await docRef.set(data);
   return data;
 };
 
+export const getPublishedFeedItems = async (feedId: string): Promise<FeedItem[]> => {
+  const snapshot = await db.collection('items')
+    .where('feed_id', '==', feedId)
+    .orderBy('created_at', 'desc')
+    .get();
+
+  return snapshot.docs
+    .map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        created_at: data.created_at ? data.created_at.toDate() : new Date(),
+        published_at: data.published_at ? data.published_at.toDate() : (data.created_at ? data.created_at.toDate() : new Date()),
+        queued_at: data.queued_at ? data.queued_at.toDate() : undefined,
+        status: data.status || 'published',
+      } as FeedItem;
+    })
+    .filter(item => item.status !== 'queued')
+    .sort((a, b) => {
+      const timeA = a.published_at ? a.published_at.getTime() : a.created_at.getTime();
+      const timeB = b.published_at ? b.published_at.getTime() : b.created_at.getTime();
+      return timeB - timeA;
+    });
+};
+
+export const getQueuedFeedItems = async (feedId: string): Promise<FeedItem[]> => {
+  const snapshot = await db.collection('items')
+    .where('feed_id', '==', feedId)
+    .get();
+
+  return snapshot.docs
+    .map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        created_at: data.created_at ? data.created_at.toDate() : new Date(),
+        published_at: data.published_at ? data.published_at.toDate() : undefined,
+        queued_at: data.queued_at ? data.queued_at.toDate() : (data.created_at ? data.created_at.toDate() : new Date()),
+        status: data.status || 'published',
+      } as FeedItem;
+    })
+    .filter(item => item.status === 'queued')
+    .sort((a, b) => a.created_at.getTime() - b.created_at.getTime()); // FIFO: oldest created first
+};
+
 export const getFeedItems = async (feedId: string): Promise<FeedItem[]> => {
+  return getPublishedFeedItems(feedId);
+};
+
+export const getAllFeedItems = async (feedId: string): Promise<FeedItem[]> => {
   const snapshot = await db.collection('items')
     .where('feed_id', '==', feedId)
     .orderBy('created_at', 'desc')
     .get();
   return snapshot.docs.map(doc => {
     const data = doc.data();
-    return { ...data, created_at: data.created_at.toDate() } as FeedItem;
+    return {
+      ...data,
+      id: doc.id,
+      created_at: data.created_at ? data.created_at.toDate() : new Date(),
+      published_at: data.published_at ? data.published_at.toDate() : undefined,
+      queued_at: data.queued_at ? data.queued_at.toDate() : undefined,
+      status: data.status || 'published',
+    } as FeedItem;
   });
 };
 
@@ -147,11 +223,73 @@ export const getFeedItemById = async (itemId: string): Promise<FeedItem | null> 
   const doc = await db.collection('items').doc(itemId).get();
   if (!doc.exists) return null;
   const data = doc.data()!;
-  return { ...data, id: doc.id, created_at: data.created_at.toDate() } as FeedItem;
+  return {
+    ...data,
+    id: doc.id,
+    created_at: data.created_at ? data.created_at.toDate() : new Date(),
+    published_at: data.published_at ? data.published_at.toDate() : undefined,
+    queued_at: data.queued_at ? data.queued_at.toDate() : undefined,
+    status: data.status || 'published',
+  } as FeedItem;
 };
 
 export const updateFeedItem = async (itemId: string, updates: Partial<FeedItem>) => {
   await db.collection('items').doc(itemId).update(updates);
+};
+
+export const publishFeedItem = async (itemId: string, feedId: string, options?: { isManual?: boolean }) => {
+  const now = new Date();
+  await db.collection('items').doc(itemId).update({
+    status: 'published',
+    published_at: now,
+  });
+
+  const item = await getFeedItemById(itemId);
+  const feed = await getFeedById(feedId);
+
+  if (item && feed) {
+    const { notifyNewEpisode } = await import('./chat');
+    const { logActivity } = await import('./logger');
+    const { getProductionUrl } = await import('./gcloud');
+
+    const originLabel = item.origin === 'youtube' ? 'YouTube video' : item.origin === 'rss' ? 'Blog post' : item.origin === 'pdf' ? 'PDF document' : 'Article';
+    const publishType = options?.isManual ? 'manually published' : 'scheduled release published';
+    logActivity({
+      feedId,
+      level: 'info',
+      category: 'episode',
+      message: `${originLabel} episode ${publishType} from queue`,
+      details: item.source_url,
+    });
+
+    const publicUrl = getProductionUrl();
+    notifyNewEpisode({
+      title: item.title,
+      description: item.description,
+      sourceUrl: item.source_url,
+      durationSeconds: item.duration_seconds,
+      origin: item.origin || 'article',
+      coverImageUrl: feed.cover_image_url,
+      webhookUrl: feed.chat_webhook_url,
+      mediaUrl: item.media_url,
+      feedUrl: publicUrl ? `${publicUrl}/feed/${feed.unguessable_slug}.xml` : '',
+      feedTitle: feed.title,
+      feedId,
+      syndicationTitle: item.syndication_title,
+    }).catch(() => {});
+  }
+
+  return item;
+};
+
+export const publishAllQueuedItems = async (feedId: string) => {
+  const queuedItems = await getQueuedFeedItems(feedId);
+  for (const item of queuedItems) {
+    if (item.id) {
+      await publishFeedItem(item.id, feedId, { isManual: true });
+    }
+  }
+  return queuedItems.length;
 };
 
 export const deleteFeedItem = async (itemId: string) => {
