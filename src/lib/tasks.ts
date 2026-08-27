@@ -5,6 +5,7 @@ interface IngestionPayload {
   feedId: string;
   url: string;
   origin: 'article' | 'rss' | 'youtube' | 'pdf';
+  title?: string;
   published_at?: string;
   syndication_title?: string;
 }

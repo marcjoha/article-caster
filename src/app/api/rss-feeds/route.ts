@@ -66,17 +66,20 @@ export async function POST(request: Request) {
             feed_id: feedId,
             url: itemUrl,
             origin: 'rss',
+            title: item.title?.trim() || undefined,
           });
 
-          // Group the batch at "now" (the global ingestion moment) so they remain in-place,
-          // but subtract i seconds to preserve internal chronological descending order (newest first).
-          const publishedAtStr = new Date(now - i * 1000).toISOString();
+          // Use original publication date, with deterministic subtractive index fallback if missing/identical
+          const rawItemDate = item.isoDate ? new Date(item.isoDate) : (item.pubDate ? new Date(item.pubDate) : null);
+          const baseTime = rawItemDate && !isNaN(rawItemDate.getTime()) ? rawItemDate.getTime() : now;
+          const publishedAtStr = new Date(baseTime - i * 1000).toISOString();
 
           await enqueueIngestion({
             ingestionId: ingestion.id!,
             feedId,
             url: itemUrl,
             origin: 'rss',
+            title: item.title?.trim() || undefined,
             published_at: publishedAtStr,
             syndication_title: feed.title || syndication.title,
           });
@@ -179,15 +182,20 @@ export async function PUT(request: Request) {
           feed_id: syn.feed_id,
           url: itemUrl,
           origin: 'rss',
+          title: item.title?.trim() || undefined,
         });
 
-        const publishedAtStr = new Date(now - i * 1000).toISOString();
+        // Use original publication date, with deterministic subtractive index fallback if missing/identical
+        const rawItemDate = item.isoDate ? new Date(item.isoDate) : (item.pubDate ? new Date(item.pubDate) : null);
+        const baseTime = rawItemDate && !isNaN(rawItemDate.getTime()) ? rawItemDate.getTime() : now;
+        const publishedAtStr = new Date(baseTime - i * 1000).toISOString();
 
         await enqueueIngestion({
           ingestionId: ingestion.id!,
           feedId: syn.feed_id,
           url: itemUrl,
           origin: 'rss',
+          title: item.title?.trim() || undefined,
           published_at: publishedAtStr,
           syndication_title: feed.title || syn.title,
         });

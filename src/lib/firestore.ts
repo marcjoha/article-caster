@@ -311,6 +311,7 @@ export interface Ingestion {
   id?: string;
   feed_id: string;
   url: string;
+  title?: string;
   status: string;
   error?: string;
   origin?: 'article' | 'rss' | 'youtube' | 'pdf';

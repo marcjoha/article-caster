@@ -17,7 +17,7 @@ import { Writable } from 'stream';
 // JSDOM import removed as parsing is refactored into shared parseHtmlToTextBlocks helper
 
 export async function POST(request: Request) {
-  const { ingestionId, feedId, url, origin, published_at, syndication_title } = await request.json();
+  const { ingestionId, feedId, url, origin, published_at, syndication_title, title: providedTitle } = await request.json();
 
   if (!ingestionId || !feedId || !url) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     logActivity({ feedId, level: 'warn', category: 'ingestion', message: 'Ingestion skipped — record was cleared', details: url });
     return NextResponse.json({ skipped: true });
   }
+  const ingestionData = ingestionDoc.data();
 
   let finalUrl = url;
   let finalOrigin = origin || 'article';
@@ -183,7 +184,7 @@ export async function POST(request: Request) {
       const voicePreference = feed?.tts_voice;
 
       const extracted = await extractArticleContent(finalUrl);
-      title = extracted.title;
+      title = (providedTitle && providedTitle.trim()) || (ingestionData?.title && String(ingestionData.title).trim()) || extracted.title;
       
       const domain = new URL(finalUrl).hostname.replace(/^www\./, '');
       const originLabel = finalOrigin === 'rss' ? 'blog post' : 'article';
