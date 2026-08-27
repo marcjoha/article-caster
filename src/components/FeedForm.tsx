@@ -43,7 +43,14 @@ export default function FeedForm({
   const [rateLimitEnabled, setRateLimitEnabled] = useState(initialData?.rate_limit_enabled ?? false);
   const [rateLimitSchedule, setRateLimitSchedule] = useState<'weekdays' | 'daily' | 'custom'>(initialData?.rate_limit_schedule || 'weekdays');
   const [rateLimitDays, setRateLimitDays] = useState<number[]>(initialData?.rate_limit_days || [1, 2, 3, 4, 5]);
-  const [rateLimitHourUtc, setRateLimitHourUtc] = useState<number>(initialData?.rate_limit_hour_utc ?? 8);
+  const [rateLimitHourUtc, setRateLimitHourUtc] = useState<number>(() => {
+    if (typeof initialData?.rate_limit_hour_utc === 'number') {
+      return initialData.rate_limit_hour_utc;
+    }
+    const d = new Date();
+    d.setHours(8, 0, 0, 0);
+    return d.getUTCHours();
+  });
   const [rateLimitEpisodesPerWindow, setRateLimitEpisodesPerWindow] = useState<number>(initialData?.rate_limit_episodes_per_window ?? 1);
   const [webhookTestStatus, setWebhookTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [webhookTestError, setWebhookTestError] = useState('');
@@ -405,9 +412,12 @@ export default function FeedForm({
                         onChange={e => setRateLimitHourUtc(parseInt(e.target.value, 10))}
                         style={{ marginBottom: 0 }}
                       >
-                        {Array.from({ length: 24 }).map((_, i) => {
-                          const hourStr = i.toString().padStart(2, '0') + ':00 UTC';
-                          return <option key={i} value={i}>{hourStr}</option>;
+                        {Array.from({ length: 24 }).map((_, localHour) => {
+                          const date = new Date();
+                          date.setHours(localHour, 0, 0, 0);
+                          const utcVal = date.getUTCHours();
+                          const hourStr = localHour.toString().padStart(2, '0') + ':00';
+                          return <option key={localHour} value={utcVal}>{hourStr}</option>;
                         })}
                       </select>
                     </div>

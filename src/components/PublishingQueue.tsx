@@ -21,7 +21,9 @@ function getScheduleSummary(feed: Feed): string {
     daysStr = feed.rate_limit_days.map(d => dayNames[d]).join(', ');
   }
 
-  const hourStr = (feed.rate_limit_hour_utc ?? 8).toString().padStart(2, '0') + ':00 UTC';
+  const d = new Date();
+  d.setUTCHours(feed.rate_limit_hour_utc ?? 8, 0, 0, 0);
+  const hourStr = d.getHours().toString().padStart(2, '0') + ':00';
   const limitStr = `${feed.rate_limit_episodes_per_window || 1}/day`;
 
   return `${daysStr} @ ${hourStr} · Max ${limitStr}`;

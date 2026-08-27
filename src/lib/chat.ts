@@ -67,8 +67,8 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
   switch (episode.origin) {
     case 'rss':
       sourceLabel = episode.syndicationTitle
-        ? `Blog post from <b>${episode.syndicationTitle}</b> at <b>${domain}</b>`
-        : `Blog post from <b>${domain}</b>`;
+        ? `Blog from <b>${episode.syndicationTitle}</b> at <b>${domain}</b>`
+        : `Blog from <b>${domain}</b>`;
       break;
     case 'youtube':
       sourceLabel = 'Video from <b>YouTube</b>';
@@ -90,7 +90,7 @@ export async function notifyNewEpisode(episode: EpisodeNotification): Promise<vo
   summaryWidgets.push({
     decoratedText: {
       startIcon: { materialIcon: { name: 'schedule' } },
-      text: `Duration: ${minutes} min`,
+      text: `${minutes} min`,
     },
   });
 
