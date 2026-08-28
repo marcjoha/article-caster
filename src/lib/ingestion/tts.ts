@@ -1,13 +1,14 @@
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 import { createWavHeader } from '@/lib/audio';
 import { withRetry } from '@/lib/retry';
+import { chunkParagraphsForSpeech } from '@/lib/ingestion/article';
 
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
   location: 'us-central1', // TTS preview model is only available in us-central1
   httpOptions: {
-    timeout: 120000, // 120s timeout for audio generation requests
+    timeout: 180000, // 180s timeout for large audio generation requests
   }
 });
 
@@ -131,29 +132,14 @@ function crossfadeBuffers(buffers: Buffer[], overlapSamples: number = 1200): Buf
 export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<SynthesizeResult> => {
   const voiceName = resolveVoice(options.voicePreference);
   
-  const chunks: string[] = [];
-  let currentChunk = '';
-  
-  for (const block of options.textBlocks) {
-    if (currentChunk.length + block.length > 300) {
-      if (currentChunk.trim()) {
-        chunks.push(currentChunk);
-      }
-      currentChunk = block;
-    } else {
-      currentChunk += block;
-    }
-  }
-  
-  if (currentChunk.trim()) {
-    chunks.push(currentChunk);
-  }
+  // Group textBlocks into natural paragraph chunks of up to ~750 chars without cutting words or sentences
+  const chunks = chunkParagraphsForSpeech(options.textBlocks, 750);
 
   if (chunks.length === 0) {
     return { audioBuffer: Buffer.alloc(0), durationSeconds: 0 };
   }
 
-  const CONCURRENCY_LIMIT = 3;
+  const CONCURRENCY_LIMIT = 4;
   const MAX_RETRIES = 3;
   const audioBuffers: Buffer[] = new Array(chunks.length);
 
@@ -162,7 +148,7 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
       async () => {
         const response = await ai.models.generateContent({
           model: 'gemini-3.1-flash-tts-preview',
-          contents: `Say the following text clearly and naturally for a podcast summary: ${chunk}`,
+          contents: `Narrate the following text clearly and naturally for a podcast episode in a steady conversational tone:\n\n${chunk}`,
           config: {
             responseModalities: ["AUDIO"],
             safetySettings: [
@@ -204,10 +190,16 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
     );
   };
 
-  for (let i = 0; i < chunks.length; i += CONCURRENCY_LIMIT) {
-    const batch = chunks.slice(i, i + CONCURRENCY_LIMIT);
-    await Promise.all(batch.map((chunk, batchIndex) => synthesizeChunk(chunk, i + batchIndex)));
-  }
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < chunks.length) {
+      const idx = nextIndex++;
+      await synthesizeChunk(chunks[idx], idx);
+    }
+  };
+
+  const workerCount = Math.min(CONCURRENCY_LIMIT, chunks.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
   const combinedPcm = crossfadeBuffers(audioBuffers, 1200); // 50ms overlap at 24kHz
   const durationSeconds = Math.round(combinedPcm.length / 48000); // 24000Hz * 1 channel * 2 bytes/sample = 48000 bytes/sec

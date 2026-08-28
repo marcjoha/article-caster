@@ -341,10 +341,39 @@ export const getActiveIngestions = async (feedId: string): Promise<Ingestion[]> 
     .limit(50)
     .get();
     
-  return snapshot.docs.map(doc => {
+  const now = Date.now();
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  const updates: Promise<unknown>[] = [];
+
+  const results = snapshot.docs.map(doc => {
     const data = doc.data();
-    return { id: doc.id, ...data, created_at: data.created_at.toDate() } as Ingestion;
+    const createdAt = data.created_at ? data.created_at.toDate() : new Date();
+    
+    // Auto-fail stale in-progress ingestions older than 60 minutes
+    if (data.status !== 'failed' && (now - createdAt.getTime() > ONE_HOUR_MS)) {
+      updates.push(
+        db.collection('ingestions').doc(doc.id).update({
+          status: 'failed',
+          error: 'Ingestion timed out or worker process terminated unexpectedly',
+        }).catch(err => console.error('Failed to auto-expire stale ingestion:', err))
+      );
+      return {
+        id: doc.id,
+        ...data,
+        status: 'failed',
+        error: 'Ingestion timed out or worker process terminated unexpectedly',
+        created_at: createdAt,
+      } as Ingestion;
+    }
+
+    return { id: doc.id, ...data, created_at: createdAt } as Ingestion;
   });
+
+  if (updates.length > 0) {
+    await Promise.allSettled(updates);
+  }
+
+  return results;
 };
 
 /**

@@ -7,7 +7,7 @@ A personal podcast feed generator that converts web articles into spoken-word au
 
 ## Features
 
-- **Article-to-Audio Ingestion** — Paste any article or X / Twitter longform post/article URL to extract, clean (with LLM-based boilerplate removal), and convert it into a podcast-grade MP3 episode (processed asynchronously via Cloud Tasks).
+- **Article-to-Audio Ingestion** — Paste any article or X / Twitter longform post/article URL to extract, clean (with LLM-based boilerplate removal), and convert it into a podcast-grade MP3 episode (processed asynchronously via Cloud Tasks). Markdown content is cleaned of syntax artifacts, and text is chunked into cohesive ~1,800 to 2,200-character segments along paragraph/sentence boundaries (never mid-word) to prevent prosody resets, silence gaps, or volume shifts.
 - **Network Resilience & Automatic Retries** — Ingestion workflows and Vertex AI TTS operations are protected by adaptive retry policies with exponential backoff, jitter, and tuned request timeouts to transparently recover from transient network drops, undici header timeouts, and API rate limits.
 - **Content Quality Gate** — Extracted content is validated by Gemini before reaching TTS. Login walls, paywalls, error pages, and other non-article content are automatically rejected with a clear error, protecting podcast subscribers from garbage episodes.
 - **PDF Document Ingestion** — Drag-and-drop or upload any PDF document (up to 20MB) or provide a URL pointing to a PDF. The document is uploaded to Google Cloud Storage (GCS) and parsed natively with Gemini 3.5 Flash to automatically strip watermarks, page numbers, academic citations, affiliations, and bibliographies, leaving a clean, continuous-reading audio podcast narrative.

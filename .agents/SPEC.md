@@ -62,8 +62,8 @@ Articles are cleaned up from ads and converted into spoken word. The resulting a
 *   **Core Integrations**:
     *   **Google Cloud Tasks**: Used to queue and process long-running article ingestion tasks asynchronously to prevent web request timeouts.
     *   **Google Cloud Scheduler**: Triggers daily RSS syndication cron jobs to automatically ingest new blog posts.
-    *   **Article Extraction**: Primary direct fetch with Jina Reader API fallback, paired with `@mozilla/readability` and `jsdom` to extract clean text, followed by a Gemini LLM to remove boilerplate and ads.
-    *   **Text-to-Speech (TTS)**: Gemini 3.1 Flash TTS API for highly expressive, human-like podcast audio.
+    *   **Article Extraction**: Primary direct fetch with Jina Reader API fallback, paired with `@mozilla/readability` and `jsdom` to extract clean text, followed by a Gemini LLM to remove boilerplate and ads. Markdown content is cleanly transformed into continuous spoken prose (stripping raw markdown syntax, unparsed link markup, and headings) and parsed into semantic paragraph blocks.
+    *   **Text-to-Speech (TTS) & Chunking**: Gemini 3.1 Flash TTS API (`gemini-3.1-flash-tts-preview`) for expressive, human-like podcast audio. Text is chunked into cohesive ~1,800 to 2,200-character segments along paragraph, sentence, and clause boundaries (never mid-word or mid-sentence), minimizing stitch points and maintaining consistent voice inflection and volume across paragraph transitions.
     *   **Audio Mastering**: FFmpeg is used to encode podcast-grade MP3 (128 kbps CBR, 44.1 kHz mono via libmp3lame) and apply loudness normalization (-16 LUFS) with True Peak limiting (-1.0 dBTP) for professional podcast audio.
     *   **Podcast Feed**: `podcast` npm package (supports RSS 2.0 with iTunes extensions for audio enclosures).
 

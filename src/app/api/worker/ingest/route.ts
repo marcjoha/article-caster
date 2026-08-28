@@ -38,10 +38,18 @@ export async function POST(request: Request) {
   let finalOrigin = origin || 'article';
   let downloadedFilePath: string | null = null;
   let activeWriteStream: Writable | null = null;
+  let timeoutTimer: NodeJS.Timeout | null = null;
 
   try {
-    const feedSnapshot = await db.collection('feeds').doc(feedId).get();
-    const feed = feedSnapshot.data() as Feed | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutTimer = setTimeout(() => {
+        reject(new Error('Ingestion task reached 50-minute safety deadline'));
+      }, 50 * 60 * 1000);
+    });
+
+    const executionPromise = (async () => {
+      const feedSnapshot = await db.collection('feeds').doc(feedId).get();
+      const feed = feedSnapshot.data() as Feed | undefined;
 
     // Stage 0: Auto-detect PDF URLs in standard article ingestion
     if (finalOrigin === 'article') {
@@ -327,6 +335,9 @@ export async function POST(request: Request) {
     // Ingestion succeeded: record URL as processed and clean up ingestion record
     await addProcessedUrl(feedId, finalUrl);
     await deleteIngestion(ingestionId);
+    })();
+
+    await Promise.race([executionPromise, timeoutPromise]);
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
@@ -334,9 +345,10 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     logActivity({ feedId, level: 'error', category: 'ingestion', message: `Ingestion failed: ${message}`, details: finalUrl });
     
-    if (activeWriteStream && !activeWriteStream.destroyed) {
+    const streamToDestroy = activeWriteStream as Writable | null;
+    if (streamToDestroy && !streamToDestroy.destroyed) {
       try {
-        activeWriteStream.destroy(error instanceof Error ? error : new Error(message));
+        streamToDestroy.destroy(error instanceof Error ? error : new Error(message));
       } catch (destroyError) {
         console.error('Failed to destroy activeWriteStream:', destroyError);
       }
@@ -347,6 +359,9 @@ export async function POST(request: Request) {
     
     return NextResponse.json({ error: message }, { status: 200 });
   } finally {
+    if (timeoutTimer) {
+      clearTimeout(timeoutTimer);
+    }
     if (downloadedFilePath && fs.existsSync(downloadedFilePath)) {
       try {
         fs.unlinkSync(downloadedFilePath);

@@ -177,11 +177,11 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
       );
     }
 
-    // Wrap in HTML for downstream processing consistency
+    // Store raw markdown content for downstream speech cleanup and parsing
     const jinaTitle = titleMatch?.[1]?.trim() || 'Unknown Title';
     article = {
       title: jinaTitle,
-      content: `<article>${markdownContent.replace(/\n/g, '<br>')}</article>`,
+      content: markdownContent,
       textContent: markdownContent,
     };
   }
@@ -202,9 +202,32 @@ export const extractArticleContent = async (url: string): Promise<{ title: strin
     throw new Error(`Content quality check failed: ${verdict.reason}`);
   }
 
+function sanitizeHtmlForLlm(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '')
+    .replace(/<canvas\b[^<]*(?:(?!<\/canvas>)<[^<]*)*<\/canvas>/gi, '')
+    .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '')
+    .replace(/<template\b[^<]*(?:(?!<\/template>)<[^<]*)*<\/template>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\s(style|class|data-[a-z0-9-]+|id|onclick|on[a-z]+)="[^"]*"/gi, '')
+    .replace(/\s(style|class|data-[a-z0-9-]+|id|onclick|on[a-z]+)='[^']*'/gi, '')
+    .replace(/<img\b[^>]*>/gi, '')
+    .replace(/<picture\b[^<]*(?:(?!<\/picture>)<[^<]*)*<\/picture>/gi, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n/g, '\n')
+    .trim();
+}
+
   let cleanedHtml = article.content || '';
-  try {
-    const prompt = `You are an expert content editor preparing an article for text-to-speech podcast generation. 
+  const sanitized = sanitizeHtmlForLlm(article.content || '');
+
+  // For excessively long articles (>40k chars), Readability already extracted the clean body,
+  // so passing the massive payload to Gemini causes 504 timeouts.
+  if (sanitized.length <= 40000) {
+    try {
+      const prompt = `You are an expert content editor preparing an article for text-to-speech podcast generation. 
 Your task is to extract ONLY the main narrative and clean it up.
 
 You MUST completely REMOVE the following elements:
@@ -221,35 +244,38 @@ You MUST completely REMOVE the following elements:
 Output ONLY the clean valid HTML for the main narrative. Do not use markdown code blocks or add any conversational text.
 
 HTML:
-${article.content}`;
+${sanitized}`;
 
-    const response = await withRetry(
-      () =>
-        ai.models.generateContent({
-          model: 'gemini-3.5-flash',
-          contents: prompt,
-          config: {
-            safetySettings: [
-              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
-            ]
-          }
-        }),
-      {
-        maxRetries: 2,
-        initialDelayMs: 1500,
-        label: 'Article narrative cleanup',
+      const response = await withRetry(
+        () =>
+          ai.models.generateContent({
+            model: 'gemini-3.5-flash',
+            contents: prompt,
+            config: {
+              safetySettings: [
+                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+              ]
+            }
+          }),
+        {
+          maxRetries: 1,
+          initialDelayMs: 1000,
+          label: 'Article narrative cleanup',
+        }
+      );
+
+      const responseText = response.text;
+      if (responseText) {
+        cleanedHtml = responseText.replace(/^```html\n?/i, '').replace(/\n?```$/i, '');
       }
-    );
-
-    const responseText = response.text;
-    if (responseText) {
-      cleanedHtml = responseText.replace(/^```html\n?/i, '').replace(/\n?```$/i, '');
+    } catch (error) {
+      console.warn("LLM narrative cleanup skipped/failed, falling back to Readability content:", error);
     }
-  } catch (error) {
-    console.error("LLM cleanup failed, falling back to original extracted content:", error);
+  } else {
+    cleanedHtml = sanitized;
   }
 
   const { textBlocks, textContent: cleanedContent } = parseHtmlToTextBlocks(cleanedHtml);
@@ -263,58 +289,179 @@ ${article.content}`;
 };
 
 /**
- * Parses clean HTML content into short, spoken-word-optimized text blocks
- * suitable for text-to-speech generation, as well as a plain text string.
+ * Strips markdown markup and converts it to clean, continuous spoken prose.
  */
-export function parseHtmlToTextBlocks(htmlContent: string): { textBlocks: string[]; textContent: string } {
-  const contentDoc = new JSDOM(htmlContent);
+export function cleanMarkdownForSpeech(markdown: string): string {
+  let text = markdown;
 
-  const cleanedContent = (contentDoc.window.document.body.textContent || '')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n(?:[ \t]*\n)+/g, '\n\n')
-    .trim();
+  // Remove markdown comments
+  text = text.replace(/<!--[\s\S]*?-->/g, '');
 
-  const elements = contentDoc.window.document.body.children;
-  const textBlocks: string[] = [];
-  
-  for (const el of Array.from(elements)) {
-    const text = el.textContent?.trim();
-    if (!text) continue;
-    
-    const tagName = el.tagName.toLowerCase();
-    const pauseStr = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'].includes(tagName)
-      ? '\n\n'
-      : '\n';
+  // Strip fenced code blocks
+  text = text.replace(/```[\s\S]*?```/g, ' ');
 
-    let currentChunk = '';
-    const sentences = text.split(/(?<=[.!?])\s+|(?=\n)/);
+  // Strip inline code backticks
+  text = text.replace(/`([^`]+)`/g, '$1');
 
-    for (const sentence of sentences) {
-      if (!sentence.trim()) continue;
+  // Strip images
+  text = text.replace(/!\[([^\]]*)\]\([^\)]+\)/g, '');
 
-      if (currentChunk.length + sentence.length > 300) {
-        if (currentChunk) {
-          textBlocks.push(`${currentChunk.trim()}${pauseStr}`);
+  // Convert markdown links [text](url) -> text
+  text = text.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+
+  // Convert reference links [text][ref] -> text
+  text = text.replace(/\[([^\]]+)\]\[[^\]]*\]/g, '$1');
+
+  // Strip bare link references [ref]: url
+  text = text.replace(/^\[[^\]]+\]:\s*https?:\/\/\S+/gm, '');
+
+  // Convert headings to regular sentences with period if missing punctuation
+  text = text.replace(/^#{1,6}\s*(.+)$/gm, (_, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return '';
+    return /[.!?:]$/.test(trimmed) ? `${trimmed}\n\n` : `${trimmed}.\n\n`;
+  });
+
+  // Bullet / unordered list items: ensure trailing punctuation
+  text = text.replace(/^[\s]*[-*+]\s+(.+)$/gm, (_, item: string) => {
+    const trimmed = item.trim();
+    if (!trimmed) return '';
+    return /[.!?:]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  });
+
+  // Numbered list items: ensure trailing punctuation
+  text = text.replace(/^[\s]*\d+\.\s+(.+)$/gm, (_, item: string) => {
+    const trimmed = item.trim();
+    if (!trimmed) return '';
+    return /[.!?:]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  });
+
+  // Blockquotes
+  text = text.replace(/^>\s*(.+)$/gm, '$1');
+
+  // Bold / Italics / Strikethrough
+  text = text.replace(/[*_~]{1,3}([^*_~]+)[*_~]{1,3}/g, '$1');
+
+  // Markdown tables: replace pipe dividers with spaces
+  text = text.replace(/\|/g, ' ');
+  text = text.replace(/^[\s-:]+$/gm, '');
+
+  // Horizontal rules
+  text = text.replace(/^[-*_]{3,}\s*$/gm, '');
+
+  return text;
+}
+
+/**
+ * Splits an array of clean paragraphs into cohesive speech chunks (targeting ~500 to 800 chars).
+ * Splits along paragraph boundaries first, then sentence boundaries, then clause boundaries,
+ * and finally word boundaries. It NEVER splits across a word.
+ */
+export function chunkParagraphsForSpeech(paragraphs: string[], maxChars: number = 750): string[] {
+  const chunks: string[] = [];
+  let currentChunk = '';
+
+  for (const para of paragraphs) {
+    const cleanPara = para.replace(/[ \t]+/g, ' ').trim();
+    if (!cleanPara) continue;
+
+    // Check if adding this entire paragraph fits within maxChars
+    if (currentChunk && (currentChunk.length + cleanPara.length + 2 > maxChars)) {
+      chunks.push(currentChunk.trim());
+      currentChunk = '';
+    }
+
+    if (cleanPara.length <= maxChars) {
+      currentChunk += (currentChunk ? '\n\n' : '') + cleanPara;
+    } else {
+      // Paragraph itself is larger than maxChars: split by sentences
+      const sentences = cleanPara.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) || [cleanPara];
+      for (const sentence of sentences) {
+        const s = sentence.trim();
+        if (!s) continue;
+
+        if (currentChunk && (currentChunk.length + s.length + 1 > maxChars)) {
+          chunks.push(currentChunk.trim());
           currentChunk = '';
         }
 
-        let remaining = sentence;
-        while (remaining.length > 300) {
-          const chars = Array.from(remaining);
-          const safeChunk = chars.slice(0, 300).join('');
-          textBlocks.push(`${safeChunk}${pauseStr}`);
-          remaining = chars.slice(300).join('');
-        }
-        currentChunk = remaining;
-      } else {
-        currentChunk += (currentChunk ? ' ' : '') + sentence;
-      }
-    }
+        if (s.length <= maxChars) {
+          currentChunk += (currentChunk ? ' ' : '') + s;
+        } else {
+          // Sentence itself is larger than maxChars: split by clauses
+          const clauses = s.match(/[^,;:—]+[,;:—]+(?:\s+|$)|[^,;:—]+$/g) || [s];
+          for (const clause of clauses) {
+            const cl = clause.trim();
+            if (!cl) continue;
 
-    if (currentChunk.trim()) {
-      textBlocks.push(`${currentChunk.trim()}${pauseStr}`);
+            if (currentChunk && (currentChunk.length + cl.length + 1 > maxChars)) {
+              chunks.push(currentChunk.trim());
+              currentChunk = '';
+            }
+
+            if (cl.length <= maxChars) {
+              currentChunk += (currentChunk ? ' ' : '') + cl;
+            } else {
+              // Clause itself is larger than maxChars: split by words
+              const words = cl.split(/\s+/);
+              for (const word of words) {
+                if (currentChunk && (currentChunk.length + word.length + 1 > maxChars)) {
+                  chunks.push(currentChunk.trim());
+                  currentChunk = '';
+                }
+                currentChunk += (currentChunk ? ' ' : '') + word;
+              }
+            }
+          }
+        }
+      }
     }
   }
 
-  return { textBlocks, textContent: cleanedContent };
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks;
+}
+
+/**
+ * Parses HTML or markdown content into spoken-word-optimized text blocks
+ * suitable for text-to-speech generation, as well as a plain text string.
+ */
+export function parseHtmlToTextBlocks(htmlContent: string): { textBlocks: string[]; textContent: string } {
+  const cleanedMarkdown = cleanMarkdownForSpeech(htmlContent);
+  const dom = new JSDOM(cleanedMarkdown);
+  const doc = dom.window.document;
+
+  const removeSelectors = ['script', 'style', 'svg', 'canvas', 'noscript', 'template', 'button', 'nav', 'footer', 'form', 'iframe'];
+  removeSelectors.forEach(sel => {
+    doc.querySelectorAll(sel).forEach(el => el.remove());
+  });
+
+  const blockElements = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, blockquote, pre, dt, dd');
+  const rawParagraphs: string[] = [];
+
+  if (blockElements.length > 0) {
+    blockElements.forEach(el => {
+      let t = (el.textContent || '').replace(/[ \t]+/g, ' ').trim();
+      if (!t) return;
+      const isHeading = /^h[1-6]$/i.test(el.tagName);
+      if (isHeading && !/[.!?:]$/.test(t)) {
+        t += '.';
+      }
+      rawParagraphs.push(t);
+    });
+  } else {
+    const text = doc.body.textContent || '';
+    text.split(/\n\s*\n/).forEach(p => {
+      const t = p.replace(/[ \t]+/g, ' ').trim();
+      if (t) rawParagraphs.push(t);
+    });
+  }
+
+  const textBlocks = chunkParagraphsForSpeech(rawParagraphs, 750);
+  const textContent = rawParagraphs.join('\n\n');
+
+  return { textBlocks, textContent };
 }
