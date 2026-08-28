@@ -1,10 +1,14 @@
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 import { createWavHeader } from '@/lib/audio';
+import { withRetry } from '@/lib/retry';
 
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
-  location: 'us-central1' // TTS preview model is only available in us-central1
+  location: 'us-central1', // TTS preview model is only available in us-central1
+  httpOptions: {
+    timeout: 120000, // 120s timeout for audio generation requests
+  }
 });
 
 interface SynthesizeOptions {
@@ -154,8 +158,8 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
   const audioBuffers: Buffer[] = new Array(chunks.length);
 
   const synthesizeChunk = async (chunk: string, index: number): Promise<void> => {
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      try {
+    await withRetry(
+      async () => {
         const response = await ai.models.generateContent({
           model: 'gemini-3.1-flash-tts-preview',
           contents: `Say the following text clearly and naturally for a podcast summary: ${chunk}`,
@@ -191,24 +195,13 @@ export const synthesizeSpeech = async (options: SynthesizeOptions): Promise<Synt
           throw new Error(errorMessage);
         }
         audioBuffers[index] = Buffer.from(audioB64, 'base64');
-        return;
-      } catch (err) {
-        const isRateLimit = err instanceof Error && /429|503|resource exhausted/i.test(err.message);
-        const isTransientApiError = err instanceof Error && /400|INVALID_ARGUMENT/i.test(err.message);
-        const isRetryable = isRateLimit || isTransientApiError;
-
-        if (isRetryable && attempt < MAX_RETRIES) {
-          const backoffMs = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
-          const reason = isRateLimit ? 'rate limit' : 'transient API error';
-          console.warn(`Chunk ${index} hit ${reason} (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${backoffMs}ms...`);
-          await new Promise(r => setTimeout(r, backoffMs));
-          continue;
-        }
-
-        console.error(`Error synthesizing chunk ${index}:`, err);
-        throw err;
+      },
+      {
+        maxRetries: MAX_RETRIES,
+        initialDelayMs: 2000,
+        label: `TTS chunk ${index + 1}/${chunks.length}`,
       }
-    }
+    );
   };
 
   for (let i = 0; i < chunks.length; i += CONCURRENCY_LIMIT) {

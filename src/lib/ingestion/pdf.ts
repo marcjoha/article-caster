@@ -1,9 +1,13 @@
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
+import { withRetry } from '@/lib/retry';
 
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
-  location: 'global'
+  location: 'global',
+  httpOptions: {
+    timeout: 120000, // 120s timeout for PDF document parsing
+  }
 });
 
 interface PdfExtractionResult {
@@ -42,35 +46,43 @@ Respond with ONLY valid JSON matching this schema:
   "htmlContent": "The clean, semantic HTML of the extracted main body text"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: [
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: 'application/pdf',
-          },
-        },
-        prompt
-      ],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: {
-            title: { type: 'STRING' },
-            htmlContent: { type: 'STRING' }
-          },
-          required: ['title', 'htmlContent']
-        },
-        safetySettings: [
-          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
-        ]
+    const response = await withRetry(
+      () =>
+        ai.models.generateContent({
+          model: 'gemini-3.5-flash',
+          contents: [
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: 'application/pdf',
+              },
+            },
+            prompt
+          ],
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'OBJECT',
+              properties: {
+                title: { type: 'STRING' },
+                htmlContent: { type: 'STRING' }
+              },
+              required: ['title', 'htmlContent']
+            },
+            safetySettings: [
+              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ]
+          }
+        }),
+      {
+        maxRetries: 3,
+        initialDelayMs: 2000,
+        label: 'PDF parsing with Gemini',
       }
-    });
+    );
 
     const text = response.text?.trim() || '';
     

@@ -52,6 +52,7 @@ export default function ProcessingList({ feedId, episodes }: ProcessingListProps
   }, [feedId, router]);
 
   const formatError = (errorStr: string) => {
+    if (!errorStr) return 'Unknown error';
     try {
       const jsonStart = errorStr.indexOf('{');
       if (jsonStart !== -1) {
@@ -64,6 +65,14 @@ export default function ProcessingList({ feedId, episodes }: ProcessingListProps
     } catch {
       // fall through
     }
+
+    if (/fetch failed/i.test(errorStr)) {
+      return 'Network timeout connecting to AI service — please retry';
+    }
+    if (/UND_ERR|HeadersTimeout|ConnectTimeout|ETIMEDOUT|ECONNRESET/i.test(errorStr)) {
+      return 'Connection timed out — please retry';
+    }
+
     return errorStr;
   };
 

@@ -4,13 +4,17 @@ import dns from 'node:dns';
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 import { looksLikeTwitterUrl } from '@/lib/utils';
 import { extractTwitterArticle } from '@/lib/ingestion/x';
+import { withRetry } from '@/lib/retry';
 
 dns.setDefaultResultOrder('ipv4first');
 
 const ai = new GoogleGenAI({
   vertexai: true,
   project: process.env.GOOGLE_CLOUD_PROJECT,
-  location: 'global'
+  location: 'global',
+  httpOptions: {
+    timeout: 60000, // 60s timeout for article processing requests
+  }
 });
 
 /** Minimum character count for extracted content to be considered a real article. */
@@ -46,18 +50,26 @@ Respond with ONLY valid JSON (no markdown code fences): {"isArticle": boolean, "
 Text to evaluate:
 ${sample}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: prompt,
-      config: {
-        safetySettings: [
-          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
-        ]
+    const response = await withRetry(
+      () =>
+        ai.models.generateContent({
+          model: 'gemini-3.5-flash',
+          contents: prompt,
+          config: {
+            safetySettings: [
+              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ]
+          }
+        }),
+      {
+        maxRetries: 2,
+        initialDelayMs: 1500,
+        label: 'Content quality validation',
       }
-    });
+    );
 
     const raw = response.text?.trim() || '';
     
@@ -211,18 +223,26 @@ Output ONLY the clean valid HTML for the main narrative. Do not use markdown cod
 HTML:
 ${article.content}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: prompt,
-      config: {
-        safetySettings: [
-          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
-        ]
+    const response = await withRetry(
+      () =>
+        ai.models.generateContent({
+          model: 'gemini-3.5-flash',
+          contents: prompt,
+          config: {
+            safetySettings: [
+              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ]
+          }
+        }),
+      {
+        maxRetries: 2,
+        initialDelayMs: 1500,
+        label: 'Article narrative cleanup',
       }
-    });
+    );
 
     const responseText = response.text;
     if (responseText) {
