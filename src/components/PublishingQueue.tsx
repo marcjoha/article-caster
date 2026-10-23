@@ -1,7 +1,7 @@
 'use client';
 import { Feed, FeedItem } from '@/lib/firestore';
 import { formatDateTime } from '@/lib/utils';
-import { DeleteItemButton, ListenAudioButton, PublishItemButton, WatchVideoButton } from './ClientButtons';
+import { DeleteItemButton, ListenAudioButton, PublishAllQueueButton, PublishItemButton, WatchVideoButton } from './ClientButtons';
 
 interface PublishingQueueProps {
   feed: Feed;
@@ -46,9 +46,14 @@ export default function PublishingQueue({ feed, queuedItems }: PublishingQueuePr
         marginBottom: '1.5rem',
       }}>
         <h3 style={{ margin: 0 }}>Publishing Queue</h3>
-        <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          {countText}{feed.rate_limit_enabled ? ` · ${scheduleSummary}` : ''}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            {countText}{feed.rate_limit_enabled ? ` · ${scheduleSummary}` : ''}
+          </span>
+          {feed.id && queuedItems.length > 1 && (
+            <PublishAllQueueButton feedId={feed.id} count={queuedItems.length} />
+          )}
+        </div>
       </div>
 
       {queuedItems.length === 0 ? (

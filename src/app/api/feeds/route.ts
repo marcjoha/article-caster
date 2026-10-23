@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     const tts_voice = formData.get('tts_voice') as string | undefined;
     const audio_prefix_message = formData.get('audio_prefix_message') as string | undefined;
     const chat_webhook_url = formData.get('chat_webhook_url') as string | undefined;
+    const chat_aggregate_episodes = formData.get('chat_aggregate_episodes') === 'true';
     const coverImageFile = formData.get('cover_image') as File | null;
     
     const rate_limit_enabled = formData.get('rate_limit_enabled') === 'true';
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
       ...(tts_voice && { tts_voice }),
       ...(audio_prefix_message && { audio_prefix_message }),
       ...(chat_webhook_url && { chat_webhook_url }),
+      chat_aggregate_episodes,
       rate_limit_enabled,
       rate_limit_schedule,
       rate_limit_days,

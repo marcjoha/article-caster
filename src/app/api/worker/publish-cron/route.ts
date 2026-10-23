@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getFeeds, getPublishedFeedItems, getQueuedFeedItems, publishFeedItem, updateFeed } from '@/lib/firestore';
+import { getFeeds, getPublishedFeedItems, getQueuedFeedItems, publishFeedItemsBatch, updateFeed } from '@/lib/firestore';
 import { logActivity } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -55,6 +55,12 @@ async function handlePublishCron() {
           continue;
         }
 
+        // When episode aggregation is enabled, only fire once per scheduled day so newly ingested items wait for the next batch window
+        if (feed.chat_aggregate_episodes && feed.last_rate_limit_published_date === todayUtcStr) {
+          results.push({ feedId: feed.id, feedTitle: feed.title, publishedCount: 0, message: `Aggregated batch already published today (${todayUtcStr})` });
+          continue;
+        }
+
         // Count how many episodes have already been published today
         const publishedItems = await getPublishedFeedItems(feed.id);
         const publishedTodayCount = publishedItems.filter(item => {
@@ -77,15 +83,10 @@ async function handlePublishCron() {
         }
 
         const itemsToPublish = queuedItems.slice(0, remainingQuota);
-        let feedPublishedCount = 0;
-
-        for (const item of itemsToPublish) {
-          if (item.id) {
-            await publishFeedItem(item.id, feed.id, { isManual: false });
-            feedPublishedCount++;
-            totalPublished++;
-          }
-        }
+        const itemIds = itemsToPublish.map(item => item.id).filter((id): id is string => Boolean(id));
+        const publishedBatch = await publishFeedItemsBatch(itemIds, feed.id, { isManual: false });
+        const feedPublishedCount = publishedBatch.length;
+        totalPublished += feedPublishedCount;
 
         await updateFeed(feed.id, {
           last_rate_limit_published_date: todayUtcStr,

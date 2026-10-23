@@ -71,6 +71,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                           tts_voice: selectedFeed.tts_voice,
                           audio_prefix_message: selectedFeed.audio_prefix_message,
                           chat_webhook_url: selectedFeed.chat_webhook_url,
+                          chat_aggregate_episodes: selectedFeed.chat_aggregate_episodes,
                           rate_limit_enabled: selectedFeed.rate_limit_enabled,
                           rate_limit_schedule: selectedFeed.rate_limit_schedule,
                           rate_limit_days: selectedFeed.rate_limit_days,

@@ -22,6 +22,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const tts_voice = formData.get('tts_voice') as string | undefined;
     const audio_prefix_message = formData.get('audio_prefix_message') as string | undefined;
     const chat_webhook_url = formData.get('chat_webhook_url') as string | undefined;
+    const hasChatAggregateField = formData.has('chat_aggregate_episodes');
+    const chat_aggregate_episodes = formData.get('chat_aggregate_episodes') === 'true';
     const coverImageFile = formData.get('cover_image') as File | null;
     
     const hasRateLimitField = formData.has('rate_limit_enabled');
@@ -55,6 +57,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (tts_voice !== null) updates.tts_voice = tts_voice;
     if (audio_prefix_message !== null) updates.audio_prefix_message = audio_prefix_message;
     if (chat_webhook_url !== null) updates.chat_webhook_url = chat_webhook_url;
+    if (hasChatAggregateField) updates.chat_aggregate_episodes = chat_aggregate_episodes;
 
     if (hasRateLimitField) {
       updates.rate_limit_enabled = rate_limit_enabled;

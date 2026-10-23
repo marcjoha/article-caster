@@ -395,3 +395,47 @@ export function PublishItemButton({ itemId }: { itemId: string }) {
   );
 }
 
+export function PublishAllQueueButton({ feedId, count }: { feedId: string; count: number }) {
+  const router = useRouter();
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const handlePublishAll = async () => {
+    setIsPublishing(true);
+    try {
+      const res = await fetch(`/api/feeds/${feedId}/publish-queue`, { method: 'POST' });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to publish queued episodes');
+      }
+    } catch (e) {
+      console.error('Publish all error:', e);
+      alert('Network error while publishing queued episodes');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handlePublishAll}
+      disabled={isPublishing}
+      className="btn"
+      style={{
+        padding: '0 0.7rem',
+        height: '2rem',
+        fontSize: '0.75rem',
+        gap: '0.35rem',
+        background: 'var(--accent-color)',
+        color: '#fff',
+      }}
+      title={`Publish all ${count} queued episodes now`}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '0.9rem', height: '0.9rem' }}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+      </svg>
+      {isPublishing ? 'Publishing...' : `Publish All (${count})`}
+    </button>
+  );
+}

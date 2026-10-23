@@ -14,6 +14,7 @@ interface FeedFormProps {
     tts_voice?: string;
     audio_prefix_message?: string;
     chat_webhook_url?: string;
+    chat_aggregate_episodes?: boolean;
     rate_limit_enabled?: boolean;
     rate_limit_schedule?: 'weekdays' | 'daily' | 'custom';
     rate_limit_days?: number[];
@@ -40,6 +41,7 @@ export default function FeedForm({
   const [ttsVoice, setTtsVoice] = useState((!initialData?.tts_voice || initialData.tts_voice === 'auto') ? 'Puck' : initialData.tts_voice);
   const [audioPrefixMessage, setAudioPrefixMessage] = useState(initialData?.audio_prefix_message || '');
   const [chatWebhookUrl, setChatWebhookUrl] = useState(initialData?.chat_webhook_url || '');
+  const [chatAggregateEpisodes, setChatAggregateEpisodes] = useState(initialData?.chat_aggregate_episodes ?? false);
   const [rateLimitEnabled, setRateLimitEnabled] = useState(initialData?.rate_limit_enabled ?? false);
   const [rateLimitSchedule, setRateLimitSchedule] = useState<'weekdays' | 'daily' | 'custom'>(initialData?.rate_limit_schedule || 'weekdays');
   const [rateLimitDays, setRateLimitDays] = useState<number[]>(initialData?.rate_limit_days || [1, 2, 3, 4, 5]);
@@ -163,6 +165,7 @@ export default function FeedForm({
     formData.append('tts_voice', ttsVoice);
     formData.append('audio_prefix_message', audioPrefixMessage);
     formData.append('chat_webhook_url', chatWebhookUrl);
+    formData.append('chat_aggregate_episodes', String(chatAggregateEpisodes));
     formData.append('rate_limit_enabled', String(rateLimitEnabled));
     formData.append('rate_limit_schedule', rateLimitSchedule);
     formData.append('rate_limit_days', JSON.stringify(rateLimitDays));
@@ -343,6 +346,56 @@ export default function FeedForm({
               {webhookTestStatus === 'success' && (
                 <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#22c55e' }}>Test card sent — check your Google Chat space.</div>
               )}
+              <div style={{ marginTop: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    margin: 0,
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: 'var(--text-primary)',
+                    userSelect: 'none',
+                  }}
+                >
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={chatAggregateEpisodes}
+                    onClick={() => setChatAggregateEpisodes(prev => !prev)}
+                    style={{
+                      position: 'relative',
+                      width: '2.25rem',
+                      height: '1.25rem',
+                      borderRadius: '4px',
+                      backgroundColor: chatAggregateEpisodes ? 'var(--accent-color)' : '#1e293b',
+                      border: '1px solid ' + (chatAggregateEpisodes ? 'var(--accent-color)' : '#334155'),
+                      padding: 0,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'block',
+                        width: '0.9rem',
+                        height: '0.9rem',
+                        borderRadius: '2px',
+                        backgroundColor: '#fff',
+                        marginLeft: chatAggregateEpisodes ? '1.1rem' : '0.15rem',
+                      }}
+                    />
+                  </button>
+                  <span>Aggregate episodes in a post</span>
+                </label>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  Combine multiple episodes released at the same time into a single Google Chat notification card.
+                </div>
+              </div>
             </div>
 
             {/* --- Episode Publishing Schedule / Rate Limiter --- */}

@@ -22,6 +22,7 @@ export interface Feed {
   tts_voice?: string;
   audio_prefix_message?: string;
   chat_webhook_url?: string;
+  chat_aggregate_episodes?: boolean;
   processed_urls?: string[];
   rate_limit_enabled?: boolean;
   rate_limit_schedule?: 'weekdays' | 'daily' | 'custom';
@@ -237,8 +238,12 @@ export const updateFeedItem = async (itemId: string, updates: Partial<FeedItem>)
   await db.collection('items').doc(itemId).update(updates);
 };
 
-export const publishFeedItem = async (itemId: string, feedId: string, options?: { isManual?: boolean }) => {
-  const now = new Date();
+export const publishFeedItem = async (
+  itemId: string,
+  feedId: string,
+  options?: { isManual?: boolean; skipNotification?: boolean; publishedAt?: Date }
+) => {
+  const now = options?.publishedAt || new Date();
   await db.collection('items').doc(itemId).update({
     status: 'published',
     published_at: now,
@@ -248,9 +253,7 @@ export const publishFeedItem = async (itemId: string, feedId: string, options?: 
   const feed = await getFeedById(feedId);
 
   if (item && feed) {
-    const { notifyNewEpisode } = await import('./chat');
     const { logActivity } = await import('./logger');
-    const { getProductionUrl } = await import('./gcloud');
 
     const originLabel = item.origin === 'youtube' ? 'YouTube video' : item.origin === 'rss' ? 'Blog post' : item.origin === 'pdf' ? 'PDF document' : 'Article';
     const publishType = options?.isManual ? 'manually published' : 'scheduled release published';
@@ -262,8 +265,58 @@ export const publishFeedItem = async (itemId: string, feedId: string, options?: 
       details: item.source_url,
     });
 
+    if (!options?.skipNotification) {
+      const { notifyNewEpisode } = await import('./chat');
+      const { getProductionUrl } = await import('./gcloud');
+      const publicUrl = getProductionUrl();
+      notifyNewEpisode({
+        title: item.title,
+        description: item.description,
+        sourceUrl: item.source_url,
+        durationSeconds: item.duration_seconds,
+        origin: item.origin || 'article',
+        coverImageUrl: feed.cover_image_url,
+        webhookUrl: feed.chat_webhook_url,
+        mediaUrl: item.media_url,
+        feedUrl: publicUrl ? `${publicUrl}/feed/${feed.unguessable_slug}.xml` : '',
+        feedTitle: feed.title,
+        feedId,
+        syndicationTitle: item.syndication_title,
+      }).catch(() => {});
+    }
+  }
+
+  return item;
+};
+
+export const publishFeedItemsBatch = async (
+  itemIds: string[],
+  feedId: string,
+  options?: { isManual?: boolean }
+): Promise<FeedItem[]> => {
+  const feed = await getFeedById(feedId);
+  const publishedItems: FeedItem[] = [];
+  const baseTime = Date.now();
+
+  for (let i = 0; i < itemIds.length; i++) {
+    const itemId = itemIds[i];
+    const item = await publishFeedItem(itemId, feedId, {
+      isManual: options?.isManual,
+      skipNotification: true,
+      publishedAt: new Date(baseTime + i * 1000),
+    });
+    if (item) {
+      publishedItems.push(item);
+    }
+  }
+
+  if (feed && publishedItems.length > 0 && feed.chat_webhook_url) {
+    const { notifyNewEpisode, notifyNewEpisodes } = await import('./chat');
+    const { getProductionUrl } = await import('./gcloud');
     const publicUrl = getProductionUrl();
-    notifyNewEpisode({
+    const feedUrl = publicUrl ? `${publicUrl}/feed/${feed.unguessable_slug}.xml` : '';
+
+    const payloads = publishedItems.map(item => ({
       title: item.title,
       description: item.description,
       sourceUrl: item.source_url,
@@ -272,24 +325,31 @@ export const publishFeedItem = async (itemId: string, feedId: string, options?: 
       coverImageUrl: feed.cover_image_url,
       webhookUrl: feed.chat_webhook_url,
       mediaUrl: item.media_url,
-      feedUrl: publicUrl ? `${publicUrl}/feed/${feed.unguessable_slug}.xml` : '',
+      feedUrl,
       feedTitle: feed.title,
       feedId,
       syndicationTitle: item.syndication_title,
-    }).catch(() => {});
+    }));
+
+    if (feed.chat_aggregate_episodes && payloads.length > 1) {
+      notifyNewEpisodes(payloads).catch(() => {});
+    } else {
+      for (const ep of payloads) {
+        notifyNewEpisode(ep).catch(() => {});
+      }
+    }
   }
 
-  return item;
+  return publishedItems;
 };
 
 export const publishAllQueuedItems = async (feedId: string) => {
   const queuedItems = await getQueuedFeedItems(feedId);
-  for (const item of queuedItems) {
-    if (item.id) {
-      await publishFeedItem(item.id, feedId, { isManual: true });
-    }
+  const itemIds = queuedItems.map(item => item.id).filter((id): id is string => Boolean(id));
+  if (itemIds.length > 0) {
+    await publishFeedItemsBatch(itemIds, feedId, { isManual: true });
   }
-  return queuedItems.length;
+  return itemIds.length;
 };
 
 export const deleteFeedItem = async (itemId: string) => {
