@@ -62,13 +62,31 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (hasRateLimitField) {
       updates.rate_limit_enabled = rate_limit_enabled;
       if (rate_limit_schedule) updates.rate_limit_schedule = rate_limit_schedule;
+      let parsedDays: number[] | undefined;
       if (rawRateLimitDays) {
         try {
-          updates.rate_limit_days = JSON.parse(rawRateLimitDays);
+          parsedDays = JSON.parse(rawRateLimitDays);
+          updates.rate_limit_days = parsedDays;
         } catch {}
       }
-      if (rawHour !== null) updates.rate_limit_hour_utc = parseInt(rawHour, 10);
-      if (rawEpisodes !== null) updates.rate_limit_episodes_per_window = parseInt(rawEpisodes, 10);
+      const parsedHour = rawHour !== null ? parseInt(rawHour, 10) : undefined;
+      if (parsedHour !== undefined) updates.rate_limit_hour_utc = parsedHour;
+      const parsedEpisodes = rawEpisodes !== null ? parseInt(rawEpisodes, 10) : undefined;
+      if (parsedEpisodes !== undefined) updates.rate_limit_episodes_per_window = parsedEpisodes;
+
+      const prevDays = Array.isArray(feedData?.rate_limit_days) ? JSON.stringify(feedData.rate_limit_days) : '';
+      const nextDays = Array.isArray(parsedDays) ? JSON.stringify(parsedDays) : prevDays;
+      const scheduleChanged =
+        feedData?.rate_limit_enabled !== rate_limit_enabled ||
+        feedData?.rate_limit_schedule !== (rate_limit_schedule || feedData?.rate_limit_schedule) ||
+        prevDays !== nextDays ||
+        (parsedHour !== undefined && feedData?.rate_limit_hour_utc !== parsedHour) ||
+        (parsedEpisodes !== undefined && feedData?.rate_limit_episodes_per_window !== parsedEpisodes) ||
+        (hasChatAggregateField && Boolean(feedData?.chat_aggregate_episodes) !== chat_aggregate_episodes);
+
+      if (scheduleChanged) {
+        updates.last_rate_limit_published_date = '';
+      }
     }
 
     await updateFeed(id, updates);
